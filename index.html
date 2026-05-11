@@ -2000,6 +2000,13 @@ async function init() {
   const cached = loadCache();
   if (cached) {
     state = migrateState(cached);
+    // Seed espnData from snapshot for completed tournaments
+    Object.keys(state.majors || {}).forEach(majorId => {
+      const snap = state.majors[majorId]?.scoreSnapshot;
+      if (snap && Object.keys(snap).length > 0 && (!espnData[majorId] || Object.keys(espnData[majorId]).length === 0)) {
+        espnData[majorId] = snap;
+      }
+    });
   } else {
     // Render empty state immediately so page never hangs on loading
     state = migrateState({});
@@ -2192,6 +2199,23 @@ async function fetchESPN(majorId) {
       scores[name.toLowerCase()] = { score: scoreDisp, toPar, pos, thru, todayDisp, cut, teeTime: teeTimeDisp, headshot, country, flagUrl, birthDate, birthPlace, age, hand, worldRank, earnings, raw: c };
     });
     espnData[majorId] = scores;
+
+    // If tournament is complete, snapshot scores into state for permanent display
+    if (state?.majors?.[majorId]) {
+      const mData = state.majors[majorId];
+      const isComplete = mData.complete || mData.majorWinner;
+      if (isComplete && (!mData.scoreSnapshot || Object.keys(mData.scoreSnapshot).length === 0)) {
+        mData.scoreSnapshot = {};
+        Object.entries(scores).forEach(([k, v]) => {
+          mData.scoreSnapshot[k] = {
+            score: v.score, toPar: v.toPar, thru: v.thru,
+            linescores: v.raw?.linescores || [], flagUrl: v.flagUrl, country: v.country
+          };
+        });
+        syncPush();
+      }
+    }
+
     if (majorId === activeMajorId) {
       setESPNStatus('live');
       renderMain(true); // preserve scroll on ESPN update
@@ -2203,7 +2227,12 @@ async function fetchESPN(majorId) {
 }
 
 function getGolferScore(majorId, golferName) {
-  const data = espnData[majorId];
+  // Use live data if available, otherwise fall back to stored snapshot
+  let data = espnData[majorId];
+  if (!data || Object.keys(data).length === 0) {
+    const snap = state?.majors?.[majorId]?.scoreSnapshot;
+    if (snap && Object.keys(snap).length > 0) data = snap;
+  }
   if (!data) return null;
   const key = golferName.toLowerCase().trim();
 
@@ -2821,6 +2850,7 @@ function renderAdmin() {
       <h3>ESPN Data Debug</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
         <button class="btn btn-outline btn-sm" onclick="debugESPN()">Dump ESPN Data</button>
+        <button class="btn btn-outline btn-sm" onclick="saveScoreSnapshot()">Save Score Snapshot</button>
         <button class="btn btn-outline btn-sm" onclick="debugField()">Dump Field Cache</button>
         <button class="btn btn-outline btn-sm" onclick="clearESPNCache()">Clear Cache & Refetch</button>
       </div>
@@ -3524,6 +3554,25 @@ function renderStandings() {
 // ══════════════════════════════════════════
 // ESPN DEBUG HELPERS
 // ══════════════════════════════════════════
+function saveScoreSnapshot() {
+  const majorId = activeMajorId;
+  const scores = espnData[majorId];
+  if (!scores || Object.keys(scores).length === 0) {
+    showToast('No ESPN data loaded — tap Refresh first');
+    return;
+  }
+  if (!state?.majors?.[majorId]) return;
+  state.majors[majorId].scoreSnapshot = {};
+  Object.entries(scores).forEach(([k, v]) => {
+    state.majors[majorId].scoreSnapshot[k] = {
+      score: v.score, toPar: v.toPar, thru: v.thru,
+      linescores: v.raw?.linescores || [], flagUrl: v.flagUrl, country: v.country
+    };
+  });
+  syncPush();
+  showToast('Score snapshot saved ✓');
+}
+
 function debugESPN() {
   const el = document.getElementById('espnDebugOut');
   if (!el) return;
