@@ -3425,7 +3425,8 @@ function renderMain(preserveScroll = false) {
   const mData = state.majors[activeMajorId];
   const pot = calcPot(activeMajorId);
   const hasRosters = PLAYERS.some(p => mData.rosters[p]?.picks?.some(g => g));
-  const live = isTournamentLive(activeMajorId);
+  const hasSnapshot = Object.keys(espnData[activeMajorId] || {}).length > 0;
+  const live = isTournamentLive(activeMajorId) || hasSnapshot;
 
   // Status badge
   const now = new Date();
