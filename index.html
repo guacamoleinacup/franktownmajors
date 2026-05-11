@@ -3353,7 +3353,7 @@ function renderPayoutSummary(majorId) {
 // ══════════════════════════════════════════
 function renderAltCard(alt) {
   const espn = getGolferScore(activeMajorId, alt);
-  const live = isTournamentLive(activeMajorId);
+  const live = isTournamentLive(activeMajorId) || Object.keys(espnData[activeMajorId] || {}).length > 0;
   const week = isTournamentWeek(activeMajorId);
   const ls = espn?.raw?.linescores?.slice(0,4) || [];
   const thru = espn?.thru || '';
