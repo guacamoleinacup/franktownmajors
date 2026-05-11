@@ -1922,22 +1922,7 @@ const MAJORS = [
 // STATE
 // ══════════════════════════════════════════
 let state = null;
-// Auto-select the active or most recent major on load
-const _autoMajor = (() => {
-  const now = new Date();
-  // First: pick any major currently in tournament week
-  const inWeek = MAJORS.find(m => isTournamentWeek(m.id));
-  if (inWeek) return inWeek.id;
-  // Second: pick the most recent completed major
-  const past = MAJORS.filter(m => {
-    const dates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-14'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
-    return dates[m.id] && dates[m.id] < now;
-  });
-  if (past.length) return past[past.length - 1].id;
-  // Default: first major
-  return MAJORS[0].id;
-})();
-let activeMajorId = _autoMajor;
+let activeMajorId = MAJORS[0].id; // overridden in init()
 let adminUnlocked = false;
 let espnData = {}; // keyed by majorId
 let pollTimer = null;
@@ -2042,6 +2027,19 @@ async function init() {
     // Render empty state immediately so page never hangs on loading
     state = migrateState({});
   }
+  // Auto-select the right major tab
+  const _now = new Date();
+  const _inWeek = MAJORS.find(m => isTournamentWeek(m.id));
+  if (_inWeek) {
+    activeMajorId = _inWeek.id;
+  } else {
+    const _past = MAJORS.filter(m => {
+      const _dates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-14'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
+      return _dates[m.id] && _dates[m.id] < _now;
+    });
+    if (_past.length) activeMajorId = _past[_past.length - 1].id;
+  }
+
   renderMain();
   setSyncStatus('syncing');
   setESPNStatus('pending');
@@ -2544,6 +2542,7 @@ function renderAltCard(alt) {
 function renderMain(preserveScroll = false) {
   if (!state) return;
   if (activeView === 'history') { renderHistory(); return; }
+  if (activeView === 'standings') { renderStandings(); return; }
   const scrollY = preserveScroll ? window.scrollY : 0;
   const major = MAJORS.find(m => m.id === activeMajorId);
   const mData = state.majors[activeMajorId];
