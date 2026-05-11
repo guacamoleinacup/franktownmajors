@@ -3552,7 +3552,14 @@ function renderStandings() {
   yearMajors.forEach(m => {
     const mData = state.majors[m.id];
     const pot = calcPot(m.id);
+    // Only count majors that have been played (have a winner or are marked complete)
+    const hasBeenPlayed = mData.complete || mData.majorWinner || mData.teamWinner ||
+      Object.values(mData.statuses || {}).some(s => s === 'missed_cut');
     PLAYERS.forEach(p => {
+      if (!hasBeenPlayed) {
+        totals[p].majors[m.id] = null;
+        return;
+      }
       const paid = 20 + (mData.potExtra[p] || 0) * 5;
       let won = 0;
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
