@@ -1917,7 +1917,22 @@ const MAJORS = [
 // STATE
 // ══════════════════════════════════════════
 let state = null;
-let activeMajorId = MAJORS[0].id;
+// Auto-select the active or most recent major on load
+const _autoMajor = (() => {
+  const now = new Date();
+  // First: pick any major currently in tournament week
+  const inWeek = MAJORS.find(m => isTournamentWeek(m.id));
+  if (inWeek) return inWeek.id;
+  // Second: pick the most recent completed major
+  const past = MAJORS.filter(m => {
+    const dates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-14'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
+    return dates[m.id] && dates[m.id] < now;
+  });
+  if (past.length) return past[past.length - 1].id;
+  // Default: first major
+  return MAJORS[0].id;
+})();
+let activeMajorId = _autoMajor;
 let adminUnlocked = false;
 let espnData = {}; // keyed by majorId
 let pollTimer = null;
