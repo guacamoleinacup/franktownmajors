@@ -372,8 +372,8 @@
     font-weight: 500;
   }
 
-  .score-under { color: #4caf50; }
-  .score-over { color: var(--red-light); }
+  .score-under { color: #5dcc61; }
+  .score-over { color: #ff6b6b; }
   .score-even { color: var(--gold-light); }
   .score-cut { color: rgba(150,150,150,0.6); font-size: 0.75rem; }
 
@@ -944,18 +944,19 @@
   }
 
   .history-player-cell {
-    padding: 14px 20px;
-    border-right: 1px solid rgba(201,168,76,0.08);
-    border-bottom: 1px solid rgba(201,168,76,0.08);
+    padding: 16px 20px;
+    border-right: 1px solid rgba(201,168,76,0.1);
+    border-bottom: 1px solid rgba(201,168,76,0.1);
+    background: rgba(0,0,0,0.15);
   }
 
   .history-player-cell:nth-child(even) { border-right: none; }
 
   .history-player-name {
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.95rem;
     color: var(--cream);
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -963,33 +964,32 @@
 
   .history-player-banked {
     font-family: 'DM Mono', monospace;
-    font-size: 0.78rem;
+    font-size: 0.82rem;
   }
 
   .history-player-picks {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
   }
 
   .history-pick-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     padding: 2px 0;
   }
 
   .history-pick-name {
     font-family: 'Libre Baskerville', serif;
     color: var(--cream);
-    opacity: 0.85;
   }
 
   .history-pick-name.cut {
     text-decoration: line-through;
-    opacity: 0.4;
-    color: var(--red-light);
+    opacity: 0.5;
+    color: rgba(220,120,100,0.9);
   }
 
   .history-pick-name.winner-pick {
@@ -999,7 +999,8 @@
 
   .history-pick-score {
     font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 600;
   }
 
   .history-empty {
@@ -2408,7 +2409,7 @@ function renderPayoutSummary(majorId) {
     <div class="payout-row payout-winner">
       <span class="payout-label">🥇 ${w}</span>
       <span class="payout-detail">Low Team${twNames.length > 1 ? ' (Split)' : ''}</span>
-      <span class="payout-amount payout-pos">+$${twShare}</span>
+      <span class="payout-amount payout-pos">+$${twShare.toFixed(2)}</span>
     </div>`).join('') : '';
 
   const majorWinnerOwner = PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner));
@@ -2416,7 +2417,7 @@ function renderPayoutSummary(majorId) {
     <div class="payout-row payout-winner">
       <span class="payout-label">🏆 ${majorWinnerOwner || '–'}</span>
       <span class="payout-detail">Drafted ${mData.majorWinner}</span>
-      <span class="payout-amount payout-pos">+$${pot.half}</span>
+      <span class="payout-amount payout-pos">+$${pot.half.toFixed(2)}</span>
     </div>` : '';
 
   return `
@@ -2426,19 +2427,19 @@ function renderPayoutSummary(majorId) {
       <div class="payout-pot-row">
         <div class="payout-pot-item">
           <div class="payout-pot-label">Total Pot</div>
-          <div class="payout-pot-val">$${pot.total}</div>
+          <div class="payout-pot-val">$${pot.total.toFixed(2)}</div>
         </div>
         <div class="payout-pot-item">
           <div class="payout-pot-label">Low Team Prize</div>
-          <div class="payout-pot-val">$${pot.half}</div>
+          <div class="payout-pot-val">$${pot.half.toFixed(2)}</div>
         </div>
         <div class="payout-pot-item">
           <div class="payout-pot-label">Major Winner Prize</div>
-          <div class="payout-pot-val">$${pot.half}</div>
+          <div class="payout-pot-val">$${pot.half.toFixed(2)}</div>
         </div>
         ${pot.extra ? `<div class="payout-pot-item">
           <div class="payout-pot-label">Cut Penalties</div>
-          <div class="payout-pot-val payout-neg">+$${pot.extra}</div>
+          <div class="payout-pot-val payout-neg">+$${pot.extra.toFixed(2)}</div>
         </div>` : ''}
       </div>
       ${penaltyRows || teamWinnerRow || majorWinnerRow ? `
@@ -2550,22 +2551,22 @@ function renderMain(preserveScroll = false) {
         <div class="major-meta">${major.year} &nbsp;·&nbsp; ${major.course} &nbsp;·&nbsp; ${major.dates} &nbsp;&nbsp;${statusBadge}</div>
       </div>
       <div class="pot-display">
-        <div class="pot-amount">$${pot.total}</div>
+        <div class="pot-amount">$${pot.total.toFixed(2)}</div>
         <div class="pot-label">Total Pot</div>
-        <div class="pot-breakdown">$${pot.half} low team · $${pot.half} major winner${pot.extra ? ` · +$${pot.extra} penalties` : ''}</div>
+        <div class="pot-breakdown">$${pot.half.toFixed(2)} low team · $${pot.half.toFixed(2)} major winner${pot.extra ? ` · +$${pot.extra.toFixed(2)} penalties` : ''}</div>
       </div>
     </div>
   `;
 
   // ── WINNER BANNERS ──
   if (mData.majorWinner) {
-    html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${mData.majorWinner}</h3><p>Drafted by ${PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner)) || 'unknown'} · $${pot.half} prize</p></div></div>`;
+    html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${mData.majorWinner}</h3><p>Drafted by ${PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner)) || 'unknown'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
   }
   if (mData.teamWinner) {
     const twList = mData.teamWinner.split(',').map(s=>s.trim()).filter(Boolean);
     const twLabel = twList.join(' & ');
     const twPrize = Math.round(pot.half / twList.length * 100) / 100;
-    html += `<div class="winner-banner"><div class="winner-trophy">🥇</div><div class="winner-text"><h3>Low Team: ${twLabel}</h3><p>Best combined score · $${twPrize} prize${twList.length > 1 ? " each" : ""}</p></div></div>`;
+    html += `<div class="winner-banner"><div class="winner-trophy">🥇</div><div class="winner-text"><h3>Low Team: ${twLabel}</h3><p>Best combined score · $${twPrize.toFixed(2)} prize${twList.length > 1 ? " each" : ""}</p></div></div>`;
   }
 
   if (!hasRosters) {
@@ -2630,7 +2631,7 @@ function renderMain(preserveScroll = false) {
           </div>
           <div class="tc-total">
             ${scoreDisp}
-            ${potAdd > 0 ? `<span class="tc-penalty">+$${potAdd}</span>` : ''}
+            ${potAdd > 0 ? `<span class="tc-penalty">+$${potAdd.toFixed(2)}</span>` : ''}
           </div>
         </div>
         <div class="tc-golfers">
@@ -2801,7 +2802,7 @@ function renderOverallStandings() {
         const cls = v > 0 ? 'amount-positive' : v < 0 ? 'amount-negative' : '';
         return `<td class="${cls}">${v > 0 ? '+' : ''}$${v}</td>`;
       }).join('')}
-      <td class="${totals[p].net > 0 ? 'amount-positive' : totals[p].net < 0 ? 'amount-negative' : ''}" style="font-weight:700">${totals[p].net > 0 ? '+' : ''}$${totals[p].net}</td>
+      <td class="${totals[p].net > 0 ? 'amount-positive' : totals[p].net < 0 ? 'amount-negative' : ''}" style="font-weight:700">${totals[p].net > 0 ? '+' : ''}$${Math.abs(totals[p].net).toFixed(2)}</td>
     </tr>`;
   });
 
@@ -3160,7 +3161,7 @@ function renderHistory() {
             <div class="history-major-meta">${major.course} &nbsp;·&nbsp; ${major.dates}</div>
           </div>
           <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--gold-light)">
-            Total Pot: <span style="color:var(--gold);font-weight:700">$${pot.total}</span>
+            Total Pot: <span style="color:var(--gold);font-weight:700">$${pot.total.toFixed(2)}</span>
           </div>
         </div>
 
@@ -3183,7 +3184,7 @@ function renderHistory() {
           ` : ''}
           <div class="history-winner-item">
             <div class="history-winner-label">Each Half</div>
-            <div class="history-winner-value">$${pot.half}</div>
+            <div class="history-winner-value">$${pot.half.toFixed(2)}</div>
           </div>
         </div>
 
@@ -3198,7 +3199,7 @@ function renderHistory() {
               <div class="history-player-cell">
                 <div class="history-player-name">
                   <span>${pr.player}</span>
-                  <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${pr.net}</span>
+                  <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${Math.abs(pr.net).toFixed(2)}</span>
                 </div>
                 <div class="history-player-picks">
                   ${picks.map(g => {
@@ -3567,11 +3568,11 @@ function renderStandings() {
                 const v = t.majors[m.id];
                 if (!v) return '<td style="color:rgba(200,200,200,0.2)">–</td>';
                 const cls = v.net > 0 ? 'amount-positive' : v.net < 0 ? 'amount-negative' : '';
-                return `<td class="${cls}">${v.net > 0 ? '+' : ''}$${v.net}</td>`;
+                return `<td class="${cls}">${v.net > 0 ? '+' : ''}$${Math.abs(v.net).toFixed(2)}</td>`;
               }).join('')}
-              <td style="color:rgba(200,200,200,0.5)">$${t.paid}</td>
-              <td class="${t.won > 0 ? 'amount-positive' : ''}">${t.won > 0 ? '+' : ''}$${t.won}</td>
-              <td class="${t.net > 0 ? 'amount-positive' : t.net < 0 ? 'amount-negative' : ''}" style="font-weight:700;font-size:0.9rem">${t.net > 0 ? '+' : ''}$${t.net}</td>
+              <td style="color:rgba(200,200,200,0.5)">$${t.paid.toFixed(2)}</td>
+              <td class="${t.won > 0 ? 'amount-positive' : ''}">${t.won > 0 ? '+' : ''}$${t.won.toFixed(2)}</td>
+              <td class="${t.net > 0 ? 'amount-positive' : t.net < 0 ? 'amount-negative' : ''}" style="font-weight:700;font-size:0.9rem">${t.net > 0 ? '+' : ''}$${Math.abs(t.net).toFixed(2)}</td>
             </tr>`;
           }).join('')}
         </tbody>
