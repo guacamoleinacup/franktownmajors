@@ -2004,6 +2004,18 @@ async function init() {
 
   // Always render immediately — either from cache or fresh empty state
   const cached = loadCache();
+  // Auto-select the right major tab BEFORE first render
+  const _now = new Date();
+  const _inWeek = MAJORS.find(m => isTournamentWeek(m.id));
+  if (_inWeek) {
+    activeMajorId = _inWeek.id;
+  } else {
+    const _dates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-14'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
+    const _past = MAJORS.filter(m => _dates[m.id] && _dates[m.id] < _now);
+    if (_past.length) activeMajorId = _past[_past.length - 1].id;
+  }
+  renderTabs(); // re-render tabs with correct active tab highlighted
+
   if (cached) {
     state = migrateState(cached);
     // Seed espnData from snapshot for completed tournaments
@@ -2027,19 +2039,6 @@ async function init() {
     // Render empty state immediately so page never hangs on loading
     state = migrateState({});
   }
-  // Auto-select the right major tab
-  const _now = new Date();
-  const _inWeek = MAJORS.find(m => isTournamentWeek(m.id));
-  if (_inWeek) {
-    activeMajorId = _inWeek.id;
-  } else {
-    const _past = MAJORS.filter(m => {
-      const _dates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-14'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
-      return _dates[m.id] && _dates[m.id] < _now;
-    });
-    if (_past.length) activeMajorId = _past[_past.length - 1].id;
-  }
-
   renderMain();
   setSyncStatus('syncing');
   setESPNStatus('pending');
@@ -2573,6 +2572,8 @@ function renderMain(preserveScroll = false) {
   if (!state) return;
   if (activeView === 'history') { renderHistory(); return; }
   if (activeView === 'standings') { renderStandings(); return; }
+  // Don't auto-switch major tabs during background sync — respect what user is viewing
+  // (activeMajorId is only changed by user tab clicks or initial load)
   const scrollY = preserveScroll ? window.scrollY : 0;
   const major = MAJORS.find(m => m.id === activeMajorId);
   const mData = state.majors[activeMajorId];
