@@ -2548,7 +2548,7 @@ function renderAltCard(alt, isSubIn = false) {
     totCls = sum < 0 ? 'score-under' : sum > 0 ? 'score-over' : 'score-even';
   }
 
-  const flag = espn?.flagUrl && week
+  const flag = espn?.flagUrl
     ? '<img src="' + espn.flagUrl + '" alt="" style="width:14px;height:10px;object-fit:cover;border-radius:1px;flex-shrink:0" onerror="this.remove()">'
     : '';
   const teeTime = espn?.teeTime && week && (!thru || thru === '' || thru === '0')
@@ -2792,7 +2792,7 @@ function renderMain(preserveScroll = false) {
                 <div class="gc-name-row">
                   <div style="min-width:0;overflow:hidden">
                     <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">
-                      ${espnG?.flagUrl && isTournamentWeek(activeMajorId) ? `<img src="${espnG.flagUrl}" alt="" style="width:14px;height:10px;object-fit:cover;border-radius:1px;flex-shrink:0" onerror="this.style.display='none'">` : ''}
+                      ${espnG?.flagUrl ? `<img src="${espnG.flagUrl}" alt="" style="width:14px;height:10px;object-fit:cover;border-radius:1px;flex-shrink:0" onerror="this.style.display='none'">` : ''}
                       <span class="gc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis${isGolferLeader ? ';color:var(--gold);font-weight:700' : ''}">${g}${isGolferLeader ? ' 🏆' : ''}</span>
                       ${statusTag}
                     </div>
