@@ -2118,6 +2118,7 @@ function migrateState(raw) {
       rosters: {},       // { playerName: { picks: [], alternate: '' } }
       statuses: {},      // { golferName: 'active'|'missed_cut'|'withdrawn'|'winner' }
       potExtra: {},      // { playerName: count of $5 additions }
+      subs: {},          // { playerName: { slot: index, subOut: golferName, subIn: altName, paid: true } }
       complete: false,
       teamWinner: '',
       majorWinner: '',
@@ -2125,6 +2126,7 @@ function migrateState(raw) {
     PLAYERS.forEach(p => {
       if (!raw.majors[m.id].rosters[p]) raw.majors[m.id].rosters[p] = { picks: ['','','','',''], alternate: '' };
       if (!raw.majors[m.id].potExtra[p]) raw.majors[m.id].potExtra[p] = 0;
+      if (!raw.majors[m.id].subs) raw.majors[m.id].subs = {};
     });
   });
   return raw;
@@ -2306,6 +2308,9 @@ function calcPot(majorId) {
   const base = PLAYERS.length * 20;
   let extra = 0;
   PLAYERS.forEach(p => { extra += (mData.potExtra[p] || 0) * 5; });
+  // Add $10 per confirmed sub
+  const subCount = Object.values(mData.subs || {}).filter(s => s?.paid).length;
+  extra += subCount * 10;
   const total = base + extra;
   return { base, extra, total, half: total / 2 };
 }
@@ -2323,34 +2328,59 @@ function calcTeamScore(majorId, playerName) {
   let hasAny = false;
   const scorers = [];
 
-  roster.picks.forEach(g => {
+  const playerSub = mData.subs?.[playerName];
+
+  roster.picks.forEach((g, slotIdx) => {
     if (!g) return;
     const status = mData.statuses[g] || 'active';
-    const espn = getGolferScore(majorId, g);
 
-    // Withdrawn golfers don't count at all (no score, no penalty contribution)
+    // Withdrawn golfers don't count at all
     if (status === 'withdrawn') {
       scorers.push({ name: g, status, score: null });
       return;
     }
 
-    // Missed cut: their R1+R2 score still counts toward team total
-    // (owner pays $5 penalty separately, but score is kept)
+    // Check if this slot has been subbed — use alt from R2 onwards
+    const sub = playerSub?.slot === slotIdx ? playerSub : null;
+
     let toPar = null;
-    if (espn) {
-      const ls = espn.raw?.linescores?.slice(0,4) || [];
-      if (ls.length > 0) {
-        toPar = ls.reduce((s, r) => {
+
+    if (sub?.paid && sub?.subIn) {
+      // Subbed: R1 from original + R2-R4 from alt
+      const origEspn = getGolferScore(majorId, g);
+      const altEspn = getGolferScore(majorId, sub.subIn);
+      const getLS = e => e?.raw?.linescores || e?.linescores || [];
+      const r1 = getLS(origEspn).slice(0, 1);
+      const r234 = getLS(altEspn).slice(1, 4);
+      const allLS = [...r1, ...r234];
+      if (allLS.length > 0) {
+        toPar = allLS.reduce((s, r) => {
           const d = String(r.displayValue ?? '').trim();
           const n = d === 'E' ? 0 : parseInt(d);
           return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
         }, 0);
-      } else {
-        toPar = espn.toPar ?? 0;
+        hasAny = true;
       }
-      hasAny = true;
+      scorers.push({ name: g, subIn: sub.subIn, isSubbed: true, status, score: toPar });
+    } else {
+      // Normal: sum all rounds
+      const espn = getGolferScore(majorId, g);
+      if (espn) {
+        const ls = espn.raw?.linescores?.slice(0, 4) || espn.linescores?.slice(0, 4) || [];
+        if (ls.length > 0) {
+          toPar = ls.reduce((s, r) => {
+            const d = String(r.displayValue ?? '').trim();
+            const n = d === 'E' ? 0 : parseInt(d);
+            return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
+          }, 0);
+        } else {
+          toPar = espn.toPar ?? 0;
+        }
+        hasAny = true;
+      }
+      scorers.push({ name: g, status, score: toPar, espn });
     }
-    scorers.push({ name: g, status, score: toPar, espn });
+
     if (toPar !== null) total += toPar;
   });
 
@@ -2473,7 +2503,7 @@ function renderPayoutSummary(majorId) {
 // ══════════════════════════════════════════
 // RENDER MAIN
 // ══════════════════════════════════════════
-function renderAltCard(alt) {
+function renderAltCard(alt, isSubIn = false) {
   const espn = getGolferScore(activeMajorId, alt);
   const live = isTournamentLive(activeMajorId) || Object.keys(espnData[activeMajorId] || {}).length > 0;
   const week = isTournamentWeek(activeMajorId);
@@ -2532,7 +2562,7 @@ function renderAltCard(alt) {
     + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">'
     + flag
     + '<span class="gc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + alt + '</span>'
-    + '<span class="gc-tag gc-tag-alt">ALT</span>'
+    + isSubIn ? '<span class="gc-tag" style="background:rgba(201,168,76,0.2);color:var(--gold);border-color:var(--gold)">SUB</span>' : '<span class="gc-tag gc-tag-alt">ALT</span>'
     + '</div>' + teeTime + '</div></div>'
     + '<div class="gc-scores">' + roundCells
     + '<span class="gc-total ' + totCls + '" style="opacity:0.7">' + (totStr || '–') + '</span>'
@@ -2775,6 +2805,15 @@ function renderMain(preserveScroll = false) {
                   <span class="gc-total ${overallCls}">${live && overallScore ? (overallScore === '0' ? 'E' : overallScore) : '–'}</span>
                 </div>
               </div>
+              ${(() => {
+                // Show sub-in golfer row if this golfer's slot was subbed
+                const ownerEntry = Object.entries(mData.rosters).find(([p, r]) => r?.picks?.includes(g));
+                if (!ownerEntry) return '';
+                const [owner] = ownerEntry;
+                const s = mData.subs?.[owner];
+                if (!s?.paid || mData.rosters[owner]?.picks?.[s.slot] !== g) return '';
+                return renderAltCard(s.subIn, true); // true = subIn mode
+              })()}
             `;
           }).filter(Boolean).join('')}
           ${alt ? renderAltCard(alt) : ''}
@@ -3024,7 +3063,13 @@ function renderAdmin() {
 
     <!-- Winner Declaration -->
     <div class="admin-section">
-      <h3>Declare Winners</h3>
+      <h3>R1 Substitutions ($10 each)</h3>
+      <div style="font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold-light);opacity:0.6;margin-bottom:10px">
+        Available after R1 · Before R2 starts · Alt subs in going forward · Original R1 score kept
+      </div>
+      <div id="subsSection">${renderSubsAdmin()}</div>
+
+      <h3>Declare Winners</h3>      <h3>Declare Winners</h3>
       <div class="form-group" style="margin-bottom:14px">
         <label>Major Champion</label>
         <select onchange="state.majors[activeMajorId].majorWinner=this.value">
@@ -3065,6 +3110,67 @@ function updatePick(player, slot, val) {
 function updateAlt(player, val) {
   state.majors[activeMajorId].rosters[player].alternate = val.trim();
 }
+function renderSubsAdmin() {
+  const mData = state.majors[activeMajorId];
+  if (!mData) return '';
+  const mono = "font-family:'DM Mono',monospace";
+  const serif = "font-family:'Libre Baskerville',serif";
+  return PLAYERS.map(p => {
+    const roster = mData.rosters[p];
+    const alt = roster?.alternate || '';
+    const sub = mData.subs?.[p];
+    if (!alt) return `<div style="${mono};font-size:0.65rem;color:rgba(200,200,200,0.3);padding:4px 0">${p} — no alt set</div>`;
+
+    let inner = '';
+    if (sub?.paid) {
+      inner = `<span style="${mono};font-size:0.65rem;color:#5dcc61">✓ ${sub.subOut} → ${sub.subIn}</span>`
+        + ` <button class="btn btn-outline btn-sm" style="font-size:0.6rem;padding:3px 8px" onclick="removeSub('${p}')">Undo</button>`;
+    } else {
+      const opts = '<option value="">Sub out...</option>'
+        + (roster?.picks || []).map((g, i) => g ? `<option value="${i}" ${sub?.slot === i ? 'selected' : ''}>${g}</option>` : '').join('');
+      inner = `<select onchange="setSubSlot('${p}', this.value)" style="font-size:0.7rem;padding:3px">${opts}</select>`;
+      if (sub?.slot !== undefined && !sub?.paid) {
+        inner += ` <button class="btn btn-sm" style="background:var(--gold);color:var(--green-deep);font-size:0.65rem;padding:4px 10px" onclick="confirmSub('${p}')">Confirm +$10</button>`;
+      }
+    }
+
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="${serif};font-size:0.8rem;color:var(--cream);min-width:70px">${p}</span>
+      <span style="${mono};font-size:0.62rem;color:var(--gold-light);opacity:0.6">ALT: ${alt}</span>
+      ${inner}
+    </div>`;
+  }).join('');
+}
+
+function setSubSlot(player, slotStr) {
+  const mData = state.majors[activeMajorId];
+  if (!mData.subs) mData.subs = {};
+  if (slotStr === '') {
+    delete mData.subs[player];
+  } else {
+    const slot = parseInt(slotStr);
+    const alt = mData.rosters[player]?.alternate || '';
+    mData.subs[player] = { slot, subOut: mData.rosters[player].picks[slot], subIn: alt, paid: false };
+  }
+  renderAdmin();
+}
+
+function confirmSub(player) {
+  const mData = state.majors[activeMajorId];
+  if (!mData.subs?.[player]) return;
+  mData.subs[player].paid = true;
+  syncPush();
+  renderAdmin();
+}
+
+function removeSub(player) {
+  const mData = state.majors[activeMajorId];
+  if (!mData.subs) return;
+  delete mData.subs[player];
+  syncPush();
+  renderAdmin();
+}
+
 function toggleTeamWinner(player, checked) {
   const mData = state.majors[activeMajorId];
   const winners = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()).filter(Boolean) : [];
