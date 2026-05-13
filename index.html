@@ -2816,7 +2816,13 @@ function renderMain(preserveScroll = false) {
               })()}
             `;
           }).filter(Boolean).join('')}
-          ${alt ? renderAltCard(alt) : ''}
+          ${alt ? (() => {
+              // If alt is the active sub-in, show as SUB row instead of ALT
+              const owner = Object.keys(mData.rosters).find(p => mData.rosters[p]?.alternate === alt && mData.rosters[p]?.picks?.some(g => g));
+              const sub = owner ? mData.subs?.[owner] : null;
+              const isActiveSub = sub?.paid && sub?.subIn === alt;
+              return isActiveSub ? '' : renderAltCard(alt, false);
+            })() : ''}
         </div>
       </div>
     `;
