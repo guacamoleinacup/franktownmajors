@@ -2562,7 +2562,7 @@ function renderAltCard(alt, isSubIn = false) {
     + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">'
     + flag
     + '<span class="gc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + alt + '</span>'
-    + isSubIn ? '<span class="gc-tag" style="background:rgba(201,168,76,0.2);color:var(--gold);border-color:var(--gold)">SUB</span>' : '<span class="gc-tag gc-tag-alt">ALT</span>'
+    + (isSubIn ? '<span class="gc-tag" style="background:rgba(201,168,76,0.2);color:var(--gold);border-color:var(--gold)">SUB</span>' : '<span class="gc-tag gc-tag-alt">ALT</span>')
     + '</div>' + teeTime + '</div></div>'
     + '<div class="gc-scores">' + roundCells
     + '<span class="gc-total ' + totCls + '" style="opacity:0.7">' + (totStr || '–') + '</span>'
