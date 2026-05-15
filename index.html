@@ -2576,12 +2576,20 @@ function renderAltCard(alt, isSubIn = false) {
     ? '<div class="gc-tee-time">⏰ ' + espn.teeTime + '</div>'
     : '';
 
+  // Leader badge check — same logic as main golfer cards
+  const altLS = espn?.raw?.linescores?.slice(0,4) || espn?.linescores?.slice(0,4) || [];
+  const altScore = live && altLS.length > 0
+    ? altLS.reduce((s, r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0)
+    : null;
+  const isAltLeader = live && minGolferScore !== null && altScore === minGolferScore;
+  const leaderTag = isAltLeader ? ' 🏆' : '';
+
 
   return '<div class="' + (isSubIn ? 'golfer-card' : 'golfer-card gc-alt') + '">'
     + '<div class="gc-name-row"><div style="min-width:0;overflow:hidden">'
     + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">'
     + flag
-    + '<span class="gc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + alt + '</span>'
+    + '<span class="gc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis' + (isAltLeader ? ';color:var(--gold);font-weight:700' : '') + '">' + alt + leaderTag + '</span>'
     + (isSubIn ? '<span class="gc-tag" style="background:rgba(201,168,76,0.2);color:var(--gold);border-color:var(--gold)">SUB</span>' : '<span class="gc-tag gc-tag-alt">ALT</span>')
     + '</div>' + teeTime + '</div></div>'
     + '<div class="gc-scores">' + roundCells
