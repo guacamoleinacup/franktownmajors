@@ -2593,8 +2593,8 @@ function renderMain(preserveScroll = false) {
 
   // Status badge
   const now = new Date();
-  const startDates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-21'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
-  const endDates   = { masters2026: new Date('2026-04-13T23:59:00'), pga2026: new Date('2026-05-24T23:59:00'), usopen2026: new Date('2026-06-21T23:59:00'), theopen2026: new Date('2026-07-19T23:59:00') };
+  const startDates = { masters2026: new Date('2026-04-09'), pga2026: new Date('2026-05-14'), usopen2026: new Date('2026-06-18'), theopen2026: new Date('2026-07-16') };
+  const endDates   = { masters2026: new Date('2026-04-13T23:59:00'), pga2026: new Date('2026-05-17T23:59:00'), usopen2026: new Date('2026-06-21T23:59:00'), theopen2026: new Date('2026-07-19T23:59:00') };
   let statusBadge = '';
   if (now < (startDates[activeMajorId] || Infinity)) statusBadge = `<span class="round-badge round-upcoming">Upcoming · ${major.dates}</span>`;
   else if (now > (endDates[activeMajorId] || 0) || mData.complete) statusBadge = `<span class="round-badge round-complete">Complete</span>`;
