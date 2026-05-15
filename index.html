@@ -2689,7 +2689,8 @@ function renderMain(preserveScroll = false) {
     const picks = roster?.picks || [];
     const alt = roster?.alternate || '';
     const isLeader = rank === 0 && ts.score !== null;
-    const potAdd = (mData.potExtra[ts.player] || 0) * 5;
+    const potAdd = ((mData.potExtra[ts.player] || 0) * 5)
+      + (mData.subs?.[ts.player]?.paid ? 10 : 0);
 
     const scoreDisp = live && ts.score !== null
       ? `<span class="tc-score ${ts.score < 0 ? 'score-under' : ts.score > 0 ? 'score-over' : 'score-even'}">${ts.score === 0 ? 'E' : (ts.score > 0 ? '+' : '') + ts.score}</span>`
@@ -3359,7 +3360,29 @@ function renderHistory() {
               <div class="history-player-cell">
                 <div class="history-player-name">
                   <span>${pr.player}</span>
-                  <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${Math.abs(pr.net).toFixed(2)}</span>
+                  <div style="display:flex;align-items:center;gap:8px">
+                    ${(() => {
+                      // Calculate team total score from snapshot/espn data
+                      const mData = state.majors[major.id];
+                      const roster = mData?.rosters[pr.player];
+                      const picks = roster?.picks || [];
+                      let teamTotal = null;
+                      picks.forEach(g => {
+                        if (!g) return;
+                        const espn = espnData[major.id]?.[g.toLowerCase()];
+                        if (!espn) return;
+                        const ls = espn.linescores || espn.raw?.linescores || [];
+                        if (!ls.length) return;
+                        const s = ls.slice(0,4).reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+                        teamTotal = (teamTotal||0) + s;
+                      });
+                      if (teamTotal === null) return '';
+                      const cls = teamTotal < 0 ? 'score-under' : teamTotal > 0 ? 'score-over' : 'score-even';
+                      const str = teamTotal === 0 ? 'E' : (teamTotal > 0 ? '+' : '') + teamTotal;
+                      return `<span class="${cls}" style="font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:700">${str}</span>`;
+                    })()}
+                    <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${Math.abs(pr.net).toFixed(2)}</span>
+                  </div>
                 </div>
                 <div class="history-player-picks">
                   ${picks.map(g => {
