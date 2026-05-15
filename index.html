@@ -2659,7 +2659,16 @@ function renderMain(preserveScroll = false) {
     // Tiebreaker: lowest individual golfer score on each team
     const bestScore = (player) => {
       const picks = mData.rosters[player]?.picks || [];
-      const scores = picks.map(g => {
+      const sub = mData.subs?.[player];
+      // Build effective roster: replace subbed-out pick with sub-in
+      const effectivePicks = picks.map((g, i) => {
+        if (sub?.paid && sub.slot === i && sub.subIn) return sub.subIn;
+        return g;
+      });
+      // Also consider the alt if not used as sub
+      const alt = mData.rosters[player]?.alternate;
+      const allGolfers = [...effectivePicks, ...(alt && !sub?.paid ? [alt] : [])];
+      const scores = allGolfers.map(g => {
         if (!g) return null;
         const espn = getGolferScore(activeMajorId, g);
         if (!espn) return null;
@@ -2678,13 +2687,18 @@ function renderMain(preserveScroll = false) {
   // Find the lowest individual golfer score across all teams (tournament leader)
   let minGolferScore = null;
   if (live) {
+    // Check ALL golfers on every team: picks, subs, and alts
     teamScores.forEach(ts => {
-      const picks = mData.rosters[ts.player]?.picks || [];
-      picks.forEach(g => {
-        if (!g) return;
+      const roster = mData.rosters[ts.player];
+      const allGolfers = [
+        ...(roster?.picks || []),
+        ...(roster?.alternate ? [roster.alternate] : []),
+        ...(mData.subs?.[ts.player]?.paid ? [mData.subs[ts.player].subIn] : []),
+      ].filter(Boolean);
+      allGolfers.forEach(g => {
         const espn = getGolferScore(activeMajorId, g);
         if (!espn) return;
-        const ls = espn.raw?.linescores?.slice(0,4) || [];
+        const ls = espn.raw?.linescores?.slice(0,4) || espn.linescores?.slice(0,4) || [];
         if (ls.length === 0) return;
         const score = ls.reduce((s, r) => {
           const d = String(r.displayValue ?? '').trim();
@@ -2739,8 +2753,11 @@ function renderMain(preserveScroll = false) {
             const isWinner = mData.majorWinner === g;
             const espnG = getGolferScore(activeMajorId, g);
             const golferLS = espnG?.raw?.linescores?.slice(0,4) || [];
-            const golferScore = live && golferLS.length > 0
-              ? golferLS.reduce((s, r) => { const d = String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0)
+            // Leader badge: check the actual golfer's score directly
+            const _leaderEspn = getGolferScore(activeMajorId, g);
+            const _leaderLS = _leaderEspn?.raw?.linescores?.slice(0,4) || _leaderEspn?.linescores?.slice(0,4) || [];
+            const golferScore = live && _leaderLS.length > 0
+              ? _leaderLS.reduce((s, r) => { const d = String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0)
               : null;
             const isGolferLeader = live && minGolferScore !== null && golferScore === minGolferScore;
 
