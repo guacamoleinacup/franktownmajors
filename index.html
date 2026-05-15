@@ -1936,6 +1936,7 @@ let espnData = {}; // keyed by majorId
 let pollTimer = null;
 let espnTimer = null;
 let syncFailCount = 0; // only show red after 2 consecutive failures
+let minGolferScore = null; // module-level so renderAltCard can access it
 
 function isTournamentLive(majorId) {
   const now = new Date();
@@ -2693,7 +2694,7 @@ function renderMain(preserveScroll = false) {
   html += `<div class="team-cards-grid">`;
 
   // Find the lowest individual golfer score across all teams (tournament leader)
-  let minGolferScore = null;
+  minGolferScore = null;
   if (live) {
     // Check ALL golfers on every team: picks, subs, and alts
     teamScores.forEach(ts => {
