@@ -2448,15 +2448,27 @@ function renderPayoutSummary(majorId) {
   const major = MAJORS.find(m => m.id === majorId);
 
   // Penalties
-  const penaltyRows = PLAYERS.filter(p => (mData.potExtra[p] || 0) > 0).map(p => {
-    const count = mData.potExtra[p];
-    const cutGolfers = (mData.rosters[p]?.picks || []).filter(g => g && mData.statuses[g] === 'missed_cut');
-    return `<div class="payout-row">
-      <span class="payout-label">${p}</span>
-      <span class="payout-detail">${cutGolfers.join(', ')} missed cut</span>
-      <span class="payout-amount payout-neg">+$${count * 5}</span>
-    </div>`;
-  }).join('');
+  const penaltyRows = [
+    // MC penalty rows
+    ...PLAYERS.filter(p => (mData.potExtra[p] || 0) > 0).map(p => {
+      const count = mData.potExtra[p];
+      const cutGolfers = (mData.rosters[p]?.picks || []).filter(g => g && mData.statuses[g] === 'missed_cut');
+      return `<div class="payout-row">
+        <span class="payout-label">${p}</span>
+        <span class="payout-detail">${cutGolfers.join(', ')} missed cut</span>
+        <span class="payout-amount payout-neg">+$${(count * 5).toFixed(2)}</span>
+      </div>`;
+    }),
+    // Sub fee rows
+    ...PLAYERS.filter(p => mData.subs?.[p]?.paid).map(p => {
+      const sub = mData.subs[p];
+      return `<div class="payout-row">
+        <span class="payout-label">${p}</span>
+        <span class="payout-detail">${sub.subOut} → ${sub.subIn} (sub)</span>
+        <span class="payout-amount payout-neg">+$10.00</span>
+      </div>`;
+    }),
+  ].join('');
 
   // Winners
   const twNames = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()).filter(Boolean) : [];
@@ -2494,7 +2506,7 @@ function renderPayoutSummary(majorId) {
           <div class="payout-pot-val">$${pot.half.toFixed(2)}</div>
         </div>
         ${pot.extra ? `<div class="payout-pot-item">
-          <div class="payout-pot-label">Cut Penalties</div>
+          <div class="payout-pot-label">Penalties & Subs</div>
           <div class="payout-pot-val payout-neg">+$${pot.extra.toFixed(2)}</div>
         </div>` : ''}
       </div>
@@ -2612,7 +2624,7 @@ function renderMain(preserveScroll = false) {
       <div class="pot-display">
         <div class="pot-amount">$${pot.total.toFixed(2)}</div>
         <div class="pot-label">Total Pot</div>
-        <div class="pot-breakdown">$${pot.half.toFixed(2)} low team · $${pot.half.toFixed(2)} major winner${pot.extra ? ` · +$${pot.extra.toFixed(2)} penalties` : ''}</div>
+        <div class="pot-breakdown">$${pot.half.toFixed(2)} low team · $${pot.half.toFixed(2)} major winner${pot.extra ? ` · +$${pot.extra.toFixed(2)} penalties & subs` : ''}</div>
       </div>
     </div>
   `;
