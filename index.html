@@ -2703,9 +2703,9 @@ function renderMain(preserveScroll = false) {
             <span class="tc-rank${isLeader ? ' tc-rank-gold' : ''}">${rank + 1}</span>
             <span class="tc-name">${ts.player}</span>
           </div>
-          <div class="tc-total">
+          <div class="tc-total" style="display:flex;align-items:center;gap:8px">
             ${scoreDisp}
-            ${potAdd > 0 ? `<span class="tc-penalty">+$${potAdd.toFixed(2)}</span>` : ''}
+            ${potAdd > 0 ? `<span style="font-size:0.68rem;background:rgba(255,80,80,0.15);color:#ff5555;border:1px solid rgba(255,80,80,0.35);padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-weight:700">+$${potAdd.toFixed(2)}</span>` : ''}
           </div>
         </div>
         <div class="tc-golfers">
@@ -3359,10 +3359,9 @@ function renderHistory() {
             return `
               <div class="history-player-cell">
                 <div class="history-player-name">
-                  <span>${pr.player}</span>
                   <div style="display:flex;align-items:center;gap:8px">
+                    <span>${pr.player}</span>
                     ${(() => {
-                      // Calculate team total score from snapshot/espn data
                       const mData = state.majors[major.id];
                       const roster = mData?.rosters[pr.player];
                       const picks = roster?.picks || [];
@@ -3379,10 +3378,10 @@ function renderHistory() {
                       if (teamTotal === null) return '';
                       const cls = teamTotal < 0 ? 'score-under' : teamTotal > 0 ? 'score-over' : 'score-even';
                       const str = teamTotal === 0 ? 'E' : (teamTotal > 0 ? '+' : '') + teamTotal;
-                      return `<span class="${cls}" style="font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:700">${str}</span>`;
+                      return `<span class="${cls}" style="font-family:'DM Mono',monospace;font-size:0.82rem;font-weight:700">${str}</span>`;
                     })()}
-                    <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${Math.abs(pr.net).toFixed(2)}</span>
                   </div>
+                  <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${Math.abs(pr.net).toFixed(2)}</span>
                 </div>
                 <div class="history-player-picks">
                   ${picks.map(g => {
