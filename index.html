@@ -2357,13 +2357,10 @@ function calcTeamScore(majorId, playerName) {
     let toPar = null;
 
     if (sub?.paid && sub?.subIn) {
-      // Subbed: R1 from original + R2-R4 from alt
-      const origEspn = getGolferScore(majorId, g);
+      // Subbed: full score swap — use sub-in player's complete tournament score
       const altEspn = getGolferScore(majorId, sub.subIn);
       const getLS = e => e?.raw?.linescores || e?.linescores || [];
-      const r1 = getLS(origEspn).slice(0, 1);
-      const r234 = getLS(altEspn).slice(1, 4);
-      const allLS = [...r1, ...r234];
+      const allLS = getLS(altEspn).slice(0, 4);
       if (allLS.length > 0) {
         toPar = allLS.reduce((s, r) => {
           const d = String(r.displayValue ?? '').trim();
@@ -2568,7 +2565,7 @@ function renderAltCard(alt, isSubIn = false) {
     : '';
 
 
-  return '<div class="golfer-card gc-alt">'
+  return '<div class="' + (isSubIn ? 'golfer-card' : 'golfer-card gc-alt') + '">'
     + '<div class="gc-name-row"><div style="min-width:0;overflow:hidden">'
     + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">'
     + flag
@@ -2722,6 +2719,10 @@ function renderMain(preserveScroll = false) {
             const status = mData.statuses[g] || 'active';
             const isCut = status === 'missed_cut';
             const isWD = status === 'withdrawn';
+            // Check if this golfer has been subbed out
+            const _ownerOfG = Object.keys(mData.rosters).find(p => mData.rosters[p]?.picks?.includes(g));
+            const _subData = _ownerOfG ? mData.subs?.[_ownerOfG] : null;
+            const isSubbedOut = _subData?.paid && _ownerOfG && mData.rosters[_ownerOfG]?.picks?.[_subData.slot] === g;
             const isWinner = mData.majorWinner === g;
             const espnG = getGolferScore(activeMajorId, g);
             const golferLS = espnG?.raw?.linescores?.slice(0,4) || [];
@@ -2773,6 +2774,7 @@ function renderMain(preserveScroll = false) {
             let statusTag = '';
             if (isCut) statusTag = '<span class="gc-tag gc-tag-cut">MC</span>';
             else if (isWD) statusTag = '<span class="gc-tag gc-tag-wd">WD</span>';
+            else if (isSubbedOut) statusTag = '<span class="gc-tag" style="background:rgba(201,168,76,0.15);color:var(--gold);border-color:rgba(201,168,76,0.4);font-size:0.55rem">R1 only</span>';
             else if (isWinner) statusTag = '<span class="gc-tag gc-tag-win">🏆</span>';
 
             const teeTimeStr = espnG?.teeTime || '';
@@ -2800,7 +2802,7 @@ function renderMain(preserveScroll = false) {
 
             const thruDisp = '';
             return `
-              <div class="golfer-card${isCut ? ' gc-cut' : isWD ? ' gc-wd' : ''}">
+              <div class="golfer-card${isCut ? ' gc-cut' : isWD ? ' gc-wd' : isSubbedOut ? ' gc-alt' : ''}">
                 <div class="gc-name-row">
                   <div style="min-width:0;overflow:hidden">
                     <div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">
