@@ -2802,7 +2802,9 @@ function renderMain(preserveScroll = false) {
             const overallCls = overallScore ? (overallScore.startsWith('-') ? 'score-under' : overallScore.startsWith('+') ? 'score-over' : overallScore === 'E' ? 'score-even' : '') : '';
 
             let statusTag = '';
-            if (isCut) statusTag = '<span class="gc-tag gc-tag-cut">MC</span>';
+            if (isSubbedOut && isCut) statusTag = '<span class="gc-tag" style="background:rgba(201,168,76,0.15);color:var(--gold);border-color:rgba(201,168,76,0.4);font-size:0.55rem">OUT</span><span class="gc-tag gc-tag-cut" style="margin-left:2px">MC</span>';
+            else if (isSubbedOut && isWD) statusTag = '<span class="gc-tag" style="background:rgba(201,168,76,0.15);color:var(--gold);border-color:rgba(201,168,76,0.4);font-size:0.55rem">OUT</span><span class="gc-tag gc-tag-wd" style="margin-left:2px">WD</span>';
+            else if (isCut) statusTag = '<span class="gc-tag gc-tag-cut">MC</span>';
             else if (isWD) statusTag = '<span class="gc-tag gc-tag-wd">WD</span>';
             else if (isSubbedOut) statusTag = '<span class="gc-tag" style="background:rgba(201,168,76,0.15);color:var(--gold);border-color:rgba(201,168,76,0.4);font-size:0.55rem">OUT</span>';
             else if (isWinner) statusTag = '<span class="gc-tag gc-tag-win">🏆</span>';
