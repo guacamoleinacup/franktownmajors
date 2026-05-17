@@ -2924,32 +2924,7 @@ function renderOverallStandings() {
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
       const roster = mData.rosters[p];
-      if (mData.majorWinner === '__undrafted__') {
-        // Champion not drafted — find the player with the best individual golfer score
-        // Calculate best score for each player
-        const bestDraftedScore = (player) => {
-          const picks = mData.rosters[player]?.picks || [];
-          const sub = mData.subs?.[player];
-          const effective = picks.map((g, i) => (sub?.paid && sub.slot === i) ? sub.subIn : g);
-          const alt = mData.rosters[player]?.alternate;
-          const all = [...effective, ...(alt ? [alt] : [])].filter(Boolean);
-          let best = null;
-          all.forEach(g => {
-            const espn = espnData[activeMajorId]?.[g.toLowerCase()];
-            const ls = espn?.linescores || espn?.raw?.linescores || [];
-            if (!ls.length) return;
-            const s = ls.slice(0,4).reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
-            if (best === null || s < best) best = s;
-          });
-          return best;
-        };
-        const bestScores = PLAYERS.map(pl => ({ pl, s: bestDraftedScore(pl) })).filter(x => x.s !== null);
-        if (bestScores.length) {
-          const minS = Math.min(...bestScores.map(x => x.s));
-          const winners = bestScores.filter(x => x.s === minS).map(x => x.pl);
-          if (winners.includes(p)) won += Math.round(pot.half / winners.length * 100) / 100;
-        }
-      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
+      if (mData.majorWinner && mData.majorWinner !== '__undrafted__' && roster?.picks?.includes(mData.majorWinner)) {
         won += pot.half;
       }
       totals[p].net += (won - paid);
@@ -3180,17 +3155,16 @@ function renderAdmin() {
         <label>Major Champion</label>
         <select onchange="state.majors[activeMajorId].majorWinner=this.value">
           <option value="">– Not set –</option>
-          <option value="__undrafted__" ${mData.majorWinner==='__undrafted__'?'selected':''}>Champion not drafted → best drafted golfer wins</option>
+          <option value="__undrafted__" ${mData.majorWinner==='__undrafted__'?'selected':''}>── Champion not drafted ──</option>
           ${PLAYERS.flatMap(p => (mData.rosters[p]?.picks||[]).filter(Boolean).map(g => ({g, p}))).map(({g, p}) =>
             `<option value="${g}" ${mData.majorWinner===g?'selected':''}>${g} (${p})</option>`
           ).join('')}
         </select>
         <div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold-light);opacity:0.6;margin-top:4px">If champion wasn't drafted, prize goes to owner of the best drafted golfer</div>
-        ${mData.majorWinner === '__undrafted__' ? `
         <div style="margin-top:8px">
-          <label style="font-size:0.7rem;opacity:0.7">Actual Champion Name (for records)</label>
+          <label style="font-size:0.7rem;opacity:0.7">Actual Champion Name (for records, if not drafted)</label>
           <input type="text" value="${mData.actualChampion||''}" oninput="state.majors[activeMajorId].actualChampion=this.value" placeholder="e.g. Aaron Rai" style="margin-top:4px">
-        </div>` : ''}
+        </div>
       </div>
       <div class="form-group" style="margin-bottom:14px">
         <label>Low Team Winner(s) — check all that tied</label>
@@ -3399,32 +3373,7 @@ function renderHistory() {
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
       const roster = mData.rosters[p];
-      if (mData.majorWinner === '__undrafted__') {
-        // Champion not drafted — find the player with the best individual golfer score
-        // Calculate best score for each player
-        const bestDraftedScore = (player) => {
-          const picks = mData.rosters[player]?.picks || [];
-          const sub = mData.subs?.[player];
-          const effective = picks.map((g, i) => (sub?.paid && sub.slot === i) ? sub.subIn : g);
-          const alt = mData.rosters[player]?.alternate;
-          const all = [...effective, ...(alt ? [alt] : [])].filter(Boolean);
-          let best = null;
-          all.forEach(g => {
-            const espn = espnData[activeMajorId]?.[g.toLowerCase()];
-            const ls = espn?.linescores || espn?.raw?.linescores || [];
-            if (!ls.length) return;
-            const s = ls.slice(0,4).reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
-            if (best === null || s < best) best = s;
-          });
-          return best;
-        };
-        const bestScores = PLAYERS.map(pl => ({ pl, s: bestDraftedScore(pl) })).filter(x => x.s !== null);
-        if (bestScores.length) {
-          const minS = Math.min(...bestScores.map(x => x.s));
-          const winners = bestScores.filter(x => x.s === minS).map(x => x.pl);
-          if (winners.includes(p)) won += Math.round(pot.half / winners.length * 100) / 100;
-        }
-      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
+      if (mData.majorWinner && mData.majorWinner !== '__undrafted__' && roster?.picks?.includes(mData.majorWinner)) {
         won += pot.half;
       }
       const net = won - paid;
@@ -3829,32 +3778,7 @@ function renderStandings() {
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
       const roster = mData.rosters[p];
-      if (mData.majorWinner === '__undrafted__') {
-        // Champion not drafted — find the player with the best individual golfer score
-        // Calculate best score for each player
-        const bestDraftedScore = (player) => {
-          const picks = mData.rosters[player]?.picks || [];
-          const sub = mData.subs?.[player];
-          const effective = picks.map((g, i) => (sub?.paid && sub.slot === i) ? sub.subIn : g);
-          const alt = mData.rosters[player]?.alternate;
-          const all = [...effective, ...(alt ? [alt] : [])].filter(Boolean);
-          let best = null;
-          all.forEach(g => {
-            const espn = espnData[activeMajorId]?.[g.toLowerCase()];
-            const ls = espn?.linescores || espn?.raw?.linescores || [];
-            if (!ls.length) return;
-            const s = ls.slice(0,4).reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
-            if (best === null || s < best) best = s;
-          });
-          return best;
-        };
-        const bestScores = PLAYERS.map(pl => ({ pl, s: bestDraftedScore(pl) })).filter(x => x.s !== null);
-        if (bestScores.length) {
-          const minS = Math.min(...bestScores.map(x => x.s));
-          const winners = bestScores.filter(x => x.s === minS).map(x => x.pl);
-          if (winners.includes(p)) won += Math.round(pot.half / winners.length * 100) / 100;
-        }
-      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
+      if (mData.majorWinner && mData.majorWinner !== '__undrafted__' && roster?.picks?.includes(mData.majorWinner)) {
         won += pot.half;
       }
       const net = won - paid;
