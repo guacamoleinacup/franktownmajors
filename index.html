@@ -2102,7 +2102,7 @@ async function syncPull() {
   }
 }
 
-async function syncPush() {
+async function syncPush(retries = 2) {
   setSyncStatus('syncing');
   try {
     const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
@@ -2116,9 +2116,14 @@ async function syncPush() {
     showToast('Saved ✓');
     renderMain(true);
   } catch(e) {
-    setSyncStatus('error');
-    showToast('Save failed — check connection');
     console.warn('syncPush failed:', e.message);
+    if (retries > 0) {
+      showToast('Retrying save…');
+      await new Promise(res => setTimeout(res, 2000));
+      return syncPush(retries - 1);
+    }
+    setSyncStatus('error');
+    showToast('Save failed — tap Refresh then try again');
   }
 }
 
@@ -2135,6 +2140,7 @@ function migrateState(raw) {
       teamWinner: '',
       majorWinner: '',
       actualChampion: '',
+      prizeRecipient: '',
     };
     PLAYERS.forEach(p => {
       if (!raw.majors[m.id].rosters[p]) raw.majors[m.id].rosters[p] = { picks: ['','','','',''], alternate: '' };
@@ -2501,6 +2507,7 @@ function renderPayoutSummary(majorId) {
         if (bestS === null || s < bestS) { bestS = s; majorWinnerOwner = p; }
       });
     });
+    majorWinnerOwner = mData.prizeRecipient || null;
     majorWinnerDisplay = (mData.actualChampion || 'Undrafted Champion') + ' (undrafted)';
   } else {
     majorWinnerOwner = mData.majorWinner
@@ -2924,7 +2931,9 @@ function renderOverallStandings() {
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
       const roster = mData.rosters[p];
-      if (mData.majorWinner && mData.majorWinner !== '__undrafted__' && roster?.picks?.includes(mData.majorWinner)) {
+      if (mData.majorWinner === '__undrafted__') {
+        if (mData.prizeRecipient && p === mData.prizeRecipient) won += pot.half;
+      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
         won += pot.half;
       }
       totals[p].net += (won - paid);
@@ -3162,9 +3171,13 @@ function renderAdmin() {
         </select>
         <div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold-light);opacity:0.6;margin-top:4px">If champion wasn't drafted, prize goes to owner of the best drafted golfer</div>
         <div style="margin-top:8px">
-          <label style="font-size:0.7rem;opacity:0.7">Actual Champion Name (for records, if not drafted)</label>
+          <label style="font-size:0.7rem;opacity:0.7">Actual Champion Name (for records)</label>
           <input type="text" value="${mData.actualChampion||''}" oninput="state.majors[activeMajorId].actualChampion=this.value" placeholder="e.g. Aaron Rai" style="margin-top:4px">
         </div>
+        ${mData.majorWinner === '__undrafted__' ? '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Prize Goes To (best drafted golfer)</label><select onchange="state.majors[activeMajorId].prizeRecipient=this.value" style="margin-top:4px"><option value="">– Select player –</option>'
+          + PLAYERS.flatMap(p => (mData.rosters[p]?.picks||[]).filter(Boolean).map(g => ({g, p}))).map(({g, p}) =>
+            '<option value="' + p + '" ' + (mData.prizeRecipient===p?'selected':'') + '>' + g + ' (' + p + ')</option>'
+          ).join('') + '</select></div>' : ''}
       </div>
       <div class="form-group" style="margin-bottom:14px">
         <label>Low Team Winner(s) — check all that tied</label>
@@ -3373,7 +3386,9 @@ function renderHistory() {
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
       const roster = mData.rosters[p];
-      if (mData.majorWinner && mData.majorWinner !== '__undrafted__' && roster?.picks?.includes(mData.majorWinner)) {
+      if (mData.majorWinner === '__undrafted__') {
+        if (mData.prizeRecipient && p === mData.prizeRecipient) won += pot.half;
+      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
         won += pot.half;
       }
       const net = won - paid;
@@ -3778,7 +3793,9 @@ function renderStandings() {
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
       const roster = mData.rosters[p];
-      if (mData.majorWinner && mData.majorWinner !== '__undrafted__' && roster?.picks?.includes(mData.majorWinner)) {
+      if (mData.majorWinner === '__undrafted__') {
+        if (mData.prizeRecipient && p === mData.prizeRecipient) won += pot.half;
+      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
         won += pot.half;
       }
       const net = won - paid;
