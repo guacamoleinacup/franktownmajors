@@ -2105,12 +2105,23 @@ async function syncPull() {
 async function syncPush(retries = 2) {
   setSyncStatus('syncing');
   try {
+    // Strip scoreSnapshot from push payload — hardcoded in JS, no need to store in JSONBin
+    const pushState = JSON.parse(JSON.stringify(state));
+    Object.keys(pushState.majors || {}).forEach(mid => {
+      delete pushState.majors[mid].scoreSnapshot;
+    });
+    const body = JSON.stringify(pushState);
+    console.log('[syncPush] payload size:', body.length, 'bytes');
     const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-      body: JSON.stringify(state)
+      body
     });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    console.log('[syncPush] response status:', r.status);
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      throw new Error('HTTP ' + r.status + ' ' + txt.slice(0, 100));
+    }
     saveCache(state);
     setSyncStatus('live');
     showToast('Saved ✓');
