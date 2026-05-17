@@ -2482,11 +2482,36 @@ function renderPayoutSummary(majorId) {
       <span class="payout-amount payout-pos">+$${twShare.toFixed(2)}</span>
     </div>`).join('') : '';
 
-  const majorWinnerOwner = PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner));
+  // Determine major winner display
+  const isUndraftedChamp = mData.majorWinner === '__undrafted__';
+  let majorWinnerOwner = null;
+  let majorWinnerDisplay = mData.majorWinner || '';
+  if (isUndraftedChamp) {
+    // Find best drafted golfer
+    let bestS = null;
+    PLAYERS.forEach(p => {
+      const picks = mData.rosters[p]?.picks || [];
+      const sub = mData.subs?.[p];
+      const effective = picks.map((g, i) => (sub?.paid && sub.slot === i) ? sub.subIn : g);
+      [...effective, mData.rosters[p]?.alternate].filter(Boolean).forEach(g => {
+        const espn = espnData[activeMajorId]?.[g.toLowerCase()];
+        const ls = espn?.raw?.linescores?.slice(0,4) || espn?.linescores?.slice(0,4) || [];
+        if (!ls.length) return;
+        const s = ls.reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+        if (bestS === null || s < bestS) { bestS = s; majorWinnerOwner = p; }
+      });
+    });
+    majorWinnerDisplay = (mData.actualChampion || 'Undrafted Champion') + ' (undrafted)';
+  } else {
+    majorWinnerOwner = mData.majorWinner
+      ? PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner))
+      : null;
+    majorWinnerDisplay = mData.majorWinner || '';
+  }
   const majorWinnerRow = mData.majorWinner ? `
     <div class="payout-row payout-winner">
       <span class="payout-label">🏆 ${majorWinnerOwner || '–'}</span>
-      <span class="payout-detail">Drafted ${majorWinnerDisplay}</span>
+      <span class="payout-detail">${isUndraftedChamp ? majorWinnerDisplay : "Drafted " + majorWinnerDisplay}</span>
       <span class="payout-amount payout-pos">+$${pot.half.toFixed(2)}</span>
     </div>` : '';
 
