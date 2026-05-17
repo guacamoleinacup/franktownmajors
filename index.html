@@ -3143,15 +3143,14 @@ function renderAdmin() {
       <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="saveRosters()">Save Penalties</button>
     </div>
 
-    <!-- Winner Declaration -->
     <div class="admin-section">
       <h3>R1 Substitutions ($10 each)</h3>
       <div style="font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold-light);opacity:0.6;margin-bottom:10px">
-        Available after R1 · Before R2 starts · Alt subs in going forward · Original R1 score kept
+        Available after R1 · Before R2 starts · Full score swap going forward
       </div>
       <div id="subsSection">${renderSubsAdmin()}</div>
 
-      <h3>Declare Winners</h3>      <h3>Declare Winners</h3>
+      <h3>Declare Winners</h3>
       <div class="form-group" style="margin-bottom:14px">
         <label>Major Champion</label>
         <select onchange="state.majors[activeMajorId].majorWinner=this.value">
