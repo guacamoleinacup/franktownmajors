@@ -2696,26 +2696,17 @@ function renderMain(preserveScroll = false) {
   // Find the lowest individual golfer score across all teams (tournament leader)
   minGolferScore = null;
   if (live) {
-    // Check ALL golfers on every team: picks, subs, and alts
-    teamScores.forEach(ts => {
-      const roster = mData.rosters[ts.player];
-      const allGolfers = [
-        ...(roster?.picks || []),
-        ...(roster?.alternate ? [roster.alternate] : []),
-        ...(mData.subs?.[ts.player]?.paid ? [mData.subs[ts.player].subIn] : []),
-      ].filter(Boolean);
-      allGolfers.forEach(g => {
-        const espn = getGolferScore(activeMajorId, g);
-        if (!espn) return;
-        const ls = espn.raw?.linescores?.slice(0,4) || espn.linescores?.slice(0,4) || [];
-        if (ls.length === 0) return;
-        const score = ls.reduce((s, r) => {
-          const d = String(r.displayValue ?? '').trim();
-          const n = d === 'E' ? 0 : parseInt(d);
-          return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
-        }, 0);
-        if (minGolferScore === null || score < minGolferScore) minGolferScore = score;
-      });
+    // Find the actual tournament leader score from ALL ESPN data (not just drafted)
+    const allEspnData = espnData[activeMajorId] || {};
+    Object.values(allEspnData).forEach(espnG => {
+      const ls = espnG?.raw?.linescores?.slice(0,4) || espnG?.linescores?.slice(0,4) || [];
+      if (!ls.length) return;
+      const score = ls.reduce((s, r) => {
+        const d = String(r.displayValue ?? '').trim();
+        const n = d === 'E' ? 0 : parseInt(d);
+        return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
+      }, 0);
+      if (minGolferScore === null || score < minGolferScore) minGolferScore = score;
     });
   }
 
