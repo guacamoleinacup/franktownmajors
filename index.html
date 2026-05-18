@@ -3484,10 +3484,12 @@ function renderHistory() {
             const isUndrafted = mData.majorWinner === '__undrafted__';
             const champName = isUndrafted ? (mData.actualChampion || 'Undrafted Champion') : mData.majorWinner;
             const draftedBy = isUndrafted ? '–' : (PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner)) || '–');
+            const bestG = isUndrafted && mData.bestGolfer ? ' via ' + mData.bestGolfer : '';
+            const prizeNote = isUndrafted ? (mData.prizeRecipient || '–') + bestG : draftedBy;
             return '<div class="history-winner-item"><div class="history-winner-label">🏆 Major Champion</div>'
               + '<div class="history-winner-value">' + champName + (isUndrafted ? ' <span style="opacity:0.5;font-size:0.75em">(undrafted)</span>' : '') + '</div></div>'
-              + '<div class="history-winner-item"><div class="history-winner-label">Drafted By</div>'
-              + '<div class="history-winner-value">' + draftedBy + '</div></div>';
+              + '<div class="history-winner-item"><div class="history-winner-label">' + (isUndrafted ? 'Prize To' : 'Drafted By') + '</div>'
+              + '<div class="history-winner-value">' + prizeNote + '</div></div>';
           })() : ''}
           ${mData.teamWinner ? `
             <div class="history-winner-item">
@@ -3536,32 +3538,51 @@ function renderHistory() {
                   <span class="history-player-banked ${pr.net > 0 ? 'amount-positive' : pr.net < 0 ? 'amount-negative' : ''}">${pr.net > 0 ? '+' : ''}$${Math.abs(pr.net).toFixed(2)}</span>
                 </div>
                 <div class="history-player-picks">
-                  ${picks.map(g => {
+                  ${picks.map((g, slotIdx) => {
                     if (!g) return '';
                     const st = mData.statuses[g] || 'active';
                     const isCut = st === 'missed_cut' || st === 'withdrawn';
                     const isWinner = mData.majorWinner === g;
-                    const espnG = espnData[major.id]?.[g.toLowerCase()];
-                    // Calculate total from round linescores for accuracy
-                    const gLS = espnG?.linescores || espnG?.raw?.linescores || [];
-                    let scoreStr = '–';
-                    if (espnG) {
-                      if (gLS.length > 0) {
-                        const sum = gLS.slice(0,4).reduce((s,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
-                        scoreStr = sum===0?'E':(sum>0?'+'+sum:''+sum);
-                      } else {
-                        scoreStr = espnG.score || '–';
-                      }
-                    }
-                    const scoreCls = scoreStr.startsWith('-') ? 'score-under' : scoreStr.startsWith('+') ? 'score-over' : scoreStr === 'E' ? 'score-even' : '';
-                    return `
-                      <div class="history-pick-row">
-                        <span class="history-pick-name ${isCut ? 'cut' : isWinner ? 'winner-pick' : ''}">${isWinner ? '🏆 ' : ''}${g}${isCut ? ' (MC)' : ''}</span>
-                        <span class="history-pick-score ${scoreCls}">${scoreStr}</span>
-                      </div>
-                    `;
+                    // Check if this slot was subbed
+                    const playerSub = mData.subs?.[pr.player];
+                    const isSubbedOut = playerSub?.paid && playerSub.slot === slotIdx;
+                    const subIn = isSubbedOut ? playerSub.subIn : null;
+
+                    const getScore = (name) => {
+                      const e = espnData[major.id]?.[name.toLowerCase()];
+                      const ls = e?.linescores || e?.raw?.linescores || [];
+                      if (!ls.length) return { str: '–', cls: '' };
+                      const sum = ls.slice(0,4).reduce((s,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+                      const str = sum===0?'E':(sum>0?'+'+sum:''+sum);
+                      const cls = str.startsWith('-')?'score-under':str.startsWith('+')?'score-over':str==='E'?'score-even':'';
+                      return { str, cls };
+                    };
+
+                    const origScore = getScore(g);
+                    const subScore = subIn ? getScore(subIn) : null;
+                    const subInCut = subIn ? (mData.statuses[subIn] === 'missed_cut' || mData.statuses[subIn] === 'withdrawn') : false;
+
+                    let badge = '';
+                    if (isSubbedOut && isCut) badge = '<span style="font-size:0.6rem;background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.4);border-radius:3px;padding:1px 4px;margin-left:4px">OUT</span><span style="font-size:0.6rem;background:rgba(139,32,32,0.2);color:#ff6b6b;border:1px solid rgba(139,32,32,0.3);border-radius:3px;padding:1px 4px;margin-left:2px">MC</span>';
+                    else if (isSubbedOut) badge = '<span style="font-size:0.6rem;background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.4);border-radius:3px;padding:1px 4px;margin-left:4px">OUT</span>';
+                    else if (isCut) badge = '<span style="font-size:0.6rem;background:rgba(139,32,32,0.2);color:#ff6b6b;border:1px solid rgba(139,32,32,0.3);border-radius:3px;padding:1px 4px;margin-left:4px">MC</span>';
+
+                    const mainRow = `<div class="history-pick-row" style="${isSubbedOut ? 'opacity:0.5' : ''}">
+                      <span class="history-pick-name ${isWinner ? 'winner-pick' : ''}">${isWinner ? '🏆 ' : ''}${g}${badge}</span>
+                      <span class="history-pick-score ${isSubbedOut ? '' : origScore.cls}">${isSubbedOut ? '' : origScore.str}</span>
+                    </div>`;
+
+                    const subRow = subIn ? `<div class="history-pick-row">
+                      <span class="history-pick-name" style="color:var(--gold)">${subIn} <span style="font-size:0.6rem;background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.4);border-radius:3px;padding:1px 4px;margin-left:2px">SUB</span>${subInCut ? '<span style="font-size:0.6rem;background:rgba(139,32,32,0.2);color:#ff6b6b;border:1px solid rgba(139,32,32,0.3);border-radius:3px;padding:1px 4px;margin-left:2px">MC</span>' : ''}</span>
+                      <span class="history-pick-score ${subScore.cls}">${subScore.str}</span>
+                    </div>` : '';
+
+                    return mainRow + subRow;
                   }).join('')}
                   ${alt ? (() => {
+                    // Only show alt if it wasn't used as sub
+                    const playerSub = mData.subs?.[pr.player];
+                    if (playerSub?.paid && playerSub.subIn === alt) return '';
                     const altEspn = espnData[major.id]?.[alt.toLowerCase()];
                     const altLS = altEspn?.linescores || altEspn?.raw?.linescores || [];
                     let altScore = '–';
