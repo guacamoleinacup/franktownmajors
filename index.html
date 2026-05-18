@@ -3520,9 +3520,12 @@ function renderHistory() {
                       const roster = mData?.rosters[pr.player];
                       const picks = roster?.picks || [];
                       let teamTotal = null;
-                      picks.forEach(g => {
+                      const _histSub = mData.subs?.[pr.player];
+                      picks.forEach((g, si) => {
                         if (!g) return;
-                        const espn = espnData[major.id]?.[g.toLowerCase()];
+                        // Use sub-in golfer's score if this slot was subbed
+                        const effectiveG = (_histSub?.paid && _histSub.slot === si && _histSub.subIn) ? _histSub.subIn : g;
+                        const espn = espnData[major.id]?.[effectiveG.toLowerCase()];
                         if (!espn) return;
                         const ls = espn.linescores || espn.raw?.linescores || [];
                         if (!ls.length) return;
