@@ -2268,9 +2268,8 @@ async function fetchESPN(majorId) {
             linescores: v.raw?.linescores || [], flagUrl: v.flagUrl, country: v.country
           };
         });
-        // Only auto-save snapshot if rosters are populated (don't wipe JSONBin on empty load)
-        const hasRosters = PLAYERS.some(p => mData.rosters[p]?.picks?.some(g => g));
-        if (hasRosters) syncPush();
+        // Only auto-save if rosters are populated — prevents wiping JSONBin on empty load
+        if (PLAYERS.some(p => mData.rosters[p]?.picks?.some(g => g))) syncPush();
       }
     }
 
@@ -3311,7 +3310,7 @@ function updateStatus(golfer, owner, status) {
 function adjPot(player, delta) {
   const cur = state.majors[activeMajorId].potExtra[player] || 0;
   state.majors[activeMajorId].potExtra[player] = Math.max(0, cur + delta);
-  // Don't auto-push on every click - use Save Penalties button
+  syncPush();
 }
 
 function saveWinners() {
