@@ -1281,12 +1281,8 @@
     .lb-table th:nth-child(5),
     .lb-table td:nth-child(5) { display: none; }
 
-    /* Season standings — hide per-major cols on mobile, keep player + net */
-    .overall-table .major-col, .overall-table .paid-col, .overall-table .won-col { display: none; }
-    .overall-table { font-size: 0.92rem; width: 100%; }
-    .overall-table th, .overall-table td { padding: 14px 16px; font-size: 0.92rem; }
-    .overall-table td:first-child { font-size: 0.95rem; }
-    .overall-table td:last-child, .overall-table th:last-child { text-align: right; font-size: 0.95rem; font-weight: 700; }
+    /* Season standings — hide per-major cols on mobile */
+    .standings-major-cols { display: none !important; }
     .player-name { font-size: 0.82rem; }
     .golfer-pill { font-size: 0.55rem; padding: 2px 5px; }
 
@@ -2017,11 +2013,14 @@ const MASTERS_2026_SCORES = {"scottie scheffler": {"score": "-11", "toPar": -11,
 // ── ONE-TIME DATA RECOVERY ──────────────────────────────────────
 const RECOVERY_DATA = {"majors":{"masters2026":{"rosters":{"Christian":{"picks":["Tommy Fleetwood","Matt Fitzpatrick","Adam Scott","Shane Lowry","Sungjae Im"],"alternate":"Max Homa"},"Nick":{"picks":["Xander Schauffele","Patrick Reed","Ludvig Åberg","Hideki Matsuyama","Cameron Smith"],"alternate":"Keegan Bradley"},"Phil":{"picks":["Bryson DeChambeau","Min Woo Lee","Akshay Bhatia","Corey Conners","Maverick McNealy"],"alternate":"Fred Couples"},"Shaun":{"picks":["Scottie Scheffler","Collin Morikawa","Chris Gotterup","Tyrrell Hatton","Si Woo Kim"],"alternate":"Daniel Berger"},"Ben":{"picks":["Rory McIlroy","Robert MacIntyre","Jake Knapp","Jacob Bridgeman","Sam Burns"],"alternate":"Gary Woodland"},"John":{"picks":["Jon Rahm","Viktor Hovland","Brooks Koepka","Wyndham Clark","Daniel Berger"],"alternate":"Dustin Johnson"},"Josh":{"picks":["Xander Schauffele","Patrick Reed","Nicolai Højgaard","J.J. Spaun","Rasmus Højgaard"],"alternate":"Jason Day"},"Sam":{"picks":["Cameron Young","Justin Rose","Russell Henley","Sepp Straka","Ben Griffin"],"alternate":"Harris English"}},"statuses":{"Robert MacIntyre":"missed_cut"},"potExtra":{"Christian":0,"Nick":0,"Phil":0,"Shaun":0,"Ben":1,"John":0,"Josh":0,"Sam":0},"subs":{},"complete":true,"teamWinner":"Shaun,Sam","majorWinner":"Rory McIlroy","actualChampion":"","prizeRecipient":""},"pga2026":{"rosters":{"Christian":{"picks":["Jon Rahm","Patrick Cantlay","Chris Gotterup","Min Woo Lee","Thomas Detry"],"alternate":"Alex Smalley"},"Nick":{"picks":["Ludvig Åberg","Tommy Fleetwood","Si Woo Kim","Ben Griffin","Jacob Bridgeman"],"alternate":"Kristoffer Reitan"},"Phil":{"picks":["Viktor Hovland","Keegan Bradley","Gary Woodland","Corey Conners","Maverick McNealy"],"alternate":"Michael Block"},"Shaun":{"picks":["Scottie Scheffler","Justin Thomas","Tyrrell Hatton","Tommy Fleetwood","Jacob Bridgeman"],"alternate":"Wyndham Clark"},"Ben":{"picks":["Matt Fitzpatrick","Brooks Koepka","J.J. Spaun","Adam Scott","Harris English"],"alternate":"Alex Noren"},"John":{"picks":["Rory McIlroy","Rickie Fowler","Russell Henley","Kurt Kitayama","Akshay Bhatia"],"alternate":"Hideki Matsuyama"},"Josh":{"picks":["Bryson DeChambeau","Collin Morikawa","Jordan Spieth","Robert MacIntyre","Shane Lowry"],"alternate":"Joaquín Niemann"},"Sam":{"picks":["Xander Schauffele","Justin Rose","Sam Burns","Sepp Straka","Sahith Theegala"],"alternate":"Sahith Theegala"}},"statuses":{"Thomas Detry":"missed_cut","Tyrrell Hatton":"missed_cut","Viktor Hovland":"missed_cut","Keegan Bradley":"missed_cut","Gary Woodland":"missed_cut","J.J. Spaun":"missed_cut","Adam Scott":"missed_cut","Russell Henley":"missed_cut","Akshay Bhatia":"missed_cut","Bryson DeChambeau":"missed_cut","Robert MacIntyre":"missed_cut","Sepp Straka":"missed_cut"},"potExtra":{"Christian":1,"Nick":0,"Phil":3,"Shaun":2,"Ben":2,"John":2,"Josh":2,"Sam":1},"subs":{"Christian":{"slot":4,"subOut":"Thomas Detry","subIn":"Alex Smalley","paid":true},"Josh":{"slot":0,"subOut":"Bryson DeChambeau","subIn":"Joaquín Niemann","paid":true},"Sam":{"slot":3,"subOut":"Sepp Straka","subIn":"Sahith Theegala","paid":true}},"complete":true,"teamWinner":"Christian","majorWinner":"__undrafted__","actualChampion":"Aaron Rai","prizeRecipient":"Christian"},"usopen2026":{"rosters":{"Christian":{"picks":["","","","",""],"alternate":""},"Nick":{"picks":["","","","",""],"alternate":""},"Phil":{"picks":["","","","",""],"alternate":""},"Shaun":{"picks":["","","","",""],"alternate":""},"Ben":{"picks":["","","","",""],"alternate":""},"John":{"picks":["","","","",""],"alternate":""},"Josh":{"picks":["","","","",""],"alternate":""},"Sam":{"picks":["","","","",""],"alternate":""}},"statuses":{},"potExtra":{"Christian":0,"Nick":0,"Phil":0,"Shaun":0,"Ben":0,"John":0,"Josh":0,"Sam":0},"subs":{},"complete":false,"teamWinner":"","majorWinner":"","actualChampion":"","prizeRecipient":""},"theopen2026":{"rosters":{"Christian":{"picks":["","","","",""],"alternate":""},"Nick":{"picks":["","","","",""],"alternate":""},"Phil":{"picks":["","","","",""],"alternate":""},"Shaun":{"picks":["","","","",""],"alternate":""},"Ben":{"picks":["","","","",""],"alternate":""},"John":{"picks":["","","","",""],"alternate":""},"Josh":{"picks":["","","","",""],"alternate":""},"Sam":{"picks":["","","","",""],"alternate":""}},"statuses":{},"potExtra":{"Christian":0,"Nick":0,"Phil":0,"Shaun":0,"Ben":0,"John":0,"Josh":0,"Sam":0},"subs":{},"complete":false,"teamWinner":"","majorWinner":"","actualChampion":"","prizeRecipient":""}}};
 
+let _recoveryDone = false;
 async function recoverData() {
+  if (_recoveryDone) return;
   const hasRosters = PLAYERS.some(p => 
     Object.values(RECOVERY_DATA.majors).some(m => m.rosters[p]?.picks?.some(g => g))
   );
   if (!hasRosters) return;
+  _recoveryDone = true;
   try {
     const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
       method: 'PUT',
@@ -2035,9 +2034,10 @@ async function recoverData() {
       renderTabs();
       renderMain();
       showToast('Data restored ✓');
-      console.log('[Recovery] Success');
+      console.log('[Recovery] Success — will not run again this session');
     }
   } catch(e) {
+    _recoveryDone = false; // allow retry if it failed
     console.warn('[Recovery] Failed:', e.message);
   }
 }
@@ -2319,7 +2319,8 @@ async function fetchESPN(majorId) {
             linescores: v.raw?.linescores || [], flagUrl: v.flagUrl, country: v.country
           };
         });
-        syncPush();
+        // Only auto-save snapshot if rosters are populated — prevents wiping JSONBin on empty load
+        if (PLAYERS.some(p => mData.rosters[p]?.picks?.some(g => g))) syncPush();
       }
     }
 
@@ -3909,6 +3910,33 @@ function renderStandings() {
 
   const sorted = PLAYERS.slice().sort((a, b) => totals[b].net - totals[a].net);
 
+  // Build per-major column headers
+  const majorHeaders = yearMajors.map(m => {
+    const short = m.name.replace('The ','').replace(' Championship','').replace('U.S. ','US ');
+    return `<div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold-light);opacity:0.6;text-align:right">${short}</div>`;
+  }).join('');
+
+  const rows = sorted.map((p, i) => {
+    const t = totals[p];
+    const isLeader = i === 0 && t.net !== 0;
+    const netCls = t.net > 0 ? 'amount-positive' : t.net < 0 ? 'amount-negative' : '';
+    const netStr = (t.net > 0 ? '+$' : t.net < 0 ? '-$' : '$') + Math.abs(t.net).toFixed(2);
+    const majorCols = yearMajors.map(m => {
+      const v = t.majors[m.id];
+      if (!v) return `<div style="font-family:'DM Mono',monospace;font-size:0.75rem;text-align:right;color:rgba(200,200,200,0.2)">–</div>`;
+      const cls = v.net > 0 ? 'amount-positive' : v.net < 0 ? 'amount-negative' : '';
+      const str = (v.net > 0 ? '+$' : v.net < 0 ? '-$' : '$') + Math.abs(v.net).toFixed(2);
+      return `<div class="${cls}" style="font-family:'DM Mono',monospace;font-size:0.75rem;text-align:right">${str}</div>`;
+    }).join('');
+
+    return `<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(201,168,76,0.08);${isLeader ? 'background:rgba(201,168,76,0.06)' : ''}">
+      <div style="flex:0 0 auto;width:24px;font-family:'DM Mono',monospace;font-size:0.75rem;color:rgba(200,200,200,0.4)">${i+1}</div>
+      <div style="flex:1;font-family:'Libre Baskerville',serif;font-weight:700;font-size:0.9rem;color:var(--cream)">${isLeader ? '🥇 ' : ''}${p}</div>
+      <div class="standings-major-cols" style="display:flex;gap:16px;margin-right:16px">${majorCols}</div>
+      <div class="${netCls}" style="font-family:'DM Mono',monospace;font-weight:700;font-size:1rem;min-width:70px;text-align:right">${netStr}</div>
+    </div>`;
+  }).join('');
+
   let html = `
     <div class="standings-hero">
       <div>
@@ -3918,40 +3946,14 @@ function renderStandings() {
       <div class="year-tabs">${yearTabs}</div>
     </div>
 
-    <div class="standings-card" style="margin-bottom:28px">
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <table class="overall-table">
-        <thead>
-          <tr>
-            <th style="text-align:left;padding-left:16px">Player</th>
-            ${yearMajors.map(m => `<th class="major-col-header">${m.name.replace('The ','').replace(' Championship','')}<br><span style="opacity:0.5;font-size:0.5rem">${m.dates}</span></th>`).join('')}
-            <th class="paid-col">Paid In</th>
-            <th class="won-col">Won</th>
-            <th style="color:var(--gold)">Net</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${sorted.map((p, i) => {
-            const t = totals[p];
-            const isLeader = i === 0 && t.net !== 0;
-            return `<tr${isLeader ? ' style="background:rgba(201,168,76,0.06)"' : ''}>
-              <td style="text-align:left;padding-left:16px;font-weight:700">
-                ${isLeader ? '🥇 ' : ''}${p}
-              </td>
-              ${yearMajors.map(m => {
-                const v = t.majors[m.id];
-                if (!v) return '<td class="major-col" style="color:rgba(200,200,200,0.2)">–</td>';
-                const cls = v.net > 0 ? 'amount-positive' : v.net < 0 ? 'amount-negative' : '';
-                return `<td class="major-col ${cls}">${v.net > 0 ? '+$' : v.net < 0 ? '-$' : '$'}${Math.abs(v.net).toFixed(2)}</td>`;
-              }).join('')}
-              <td class="paid-col" style="color:rgba(200,200,200,0.5)">$${t.paid.toFixed(2)}</td>
-              <td class="won-col ${t.won > 0 ? 'amount-positive' : ''}">${t.won > 0 ? '+' : ''}$${t.won.toFixed(2)}</td>
-              <td class="${t.net > 0 ? 'amount-positive' : t.net < 0 ? 'amount-negative' : ''}" style="font-weight:700;font-size:0.9rem">${t.net > 0 ? '+$' : t.net < 0 ? '-$' : '$'}${Math.abs(t.net).toFixed(2)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+    <div class="standings-card" style="margin-bottom:28px;overflow:hidden">
+      <div style="display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid rgba(201,168,76,0.15)">
+        <div style="flex:0 0 auto;width:24px"></div>
+        <div style="flex:1;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold-light);opacity:0.6;letter-spacing:0.08em">PLAYER</div>
+        <div class="standings-major-cols" style="display:flex;gap:16px;margin-right:16px">${majorHeaders}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold);opacity:0.8;min-width:70px;text-align:right;letter-spacing:0.08em">NET</div>
       </div>
+      ${rows}
     </div>
   `;
 
