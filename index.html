@@ -2195,6 +2195,7 @@ function migrateState(raw) {
       majorWinner: '',
       actualChampion: '',
       prizeRecipient: '',
+      bestGolfer: '',
     };
     PLAYERS.forEach(p => {
       if (!raw.majors[m.id].rosters[p]) raw.majors[m.id].rosters[p] = { picks: ['','','','',''], alternate: '' };
@@ -2572,7 +2573,7 @@ function renderPayoutSummary(majorId) {
   const majorWinnerRow = mData.majorWinner ? `
     <div class="payout-row payout-winner">
       <span class="payout-label">🏆 ${majorWinnerOwner || '–'}</span>
-      <span class="payout-detail">${isUndraftedChamp ? majorWinnerDisplay : "Drafted " + majorWinnerDisplay}</span>
+      <span class="payout-detail">${isUndraftedChamp ? (majorWinnerDisplay + (mData.bestGolfer ? " via " + mData.bestGolfer : "")) : "Drafted " + majorWinnerDisplay}</span>
       <span class="payout-amount payout-pos">+$${pot.half.toFixed(2)}</span>
     </div>` : '';
 
@@ -2739,7 +2740,8 @@ function renderMain(preserveScroll = false) {
       _majorWinnerDisplay = mData.majorWinner || '';
     }
     if (_isUndrafted) {
-      html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${mData.actualChampion || 'Undrafted Champion'}</h3><p>Not drafted · Prize goes to ${_majorWinnerOwner || '–'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
+      const _bestG = mData.bestGolfer ? ` via ${mData.bestGolfer}` : '';
+      html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${mData.actualChampion || 'Undrafted Champion'}</h3><p>Not drafted · ${_majorWinnerOwner || '–'}${_bestG} wins · $${pot.half.toFixed(2)} prize</p></div></div>`;
     } else {
       html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${_majorWinnerDisplay}</h3><p>Drafted by ${_majorWinnerOwner || 'unknown'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
     }
@@ -3243,10 +3245,11 @@ function renderAdmin() {
           <label style="font-size:0.7rem;opacity:0.7">Actual Champion Name (for records)</label>
           <input type="text" value="${mData.actualChampion||''}" oninput="state.majors[activeMajorId].actualChampion=this.value" placeholder="e.g. Aaron Rai" style="margin-top:4px">
         </div>
-        ${mData.majorWinner === '__undrafted__' ? '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Prize Goes To (best drafted golfer)</label><select onchange="state.majors[activeMajorId].prizeRecipient=this.value" style="margin-top:4px"><option value="">– Select player –</option>'
-          + PLAYERS.flatMap(p => (mData.rosters[p]?.picks||[]).filter(Boolean).map(g => ({g, p}))).map(({g, p}) =>
-            '<option value="' + p + '" ' + (mData.prizeRecipient===p?'selected':'') + '>' + g + ' (' + p + ')</option>'
-          ).join('') + '</select></div>' : ''}
+        ${mData.majorWinner === '__undrafted__' ? '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Prize Goes To (player)</label><select onchange="state.majors[activeMajorId].prizeRecipient=this.value" style="margin-top:4px"><option value="">– Select player –</option>'
+          + PLAYERS.map(p => '<option value="' + p + '" ' + (mData.prizeRecipient===p?'selected':'') + '>' + p + '</option>').join('')
+          + '</select></div>'
+          + '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Best Drafted Golfer(s) (why they win)</label><input type="text" value="' + (mData.bestGolfer||'') + '" oninput="state.majors[activeMajorId].bestGolfer=this.value" placeholder="e.g. Jon Rahm, Alex Smalley" style="margin-top:4px"></div>'
+          : ''}
       </div>
       <div class="form-group" style="margin-bottom:14px">
         <label>Low Team Winner(s) — check all that tied</label>
