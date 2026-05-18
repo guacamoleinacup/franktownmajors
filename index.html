@@ -1283,8 +1283,10 @@
 
     /* Season standings — hide per-major cols on mobile, keep player + net */
     .overall-table .major-col, .overall-table .paid-col, .overall-table .won-col { display: none; }
-    .overall-table th, .overall-table td { padding: 12px 14px; font-size: 0.88rem; }
-    .overall-table { font-size: 0.88rem; }
+    .overall-table { font-size: 0.92rem; width: 100%; }
+    .overall-table th, .overall-table td { padding: 14px 16px; font-size: 0.92rem; }
+    .overall-table td:first-child { font-size: 0.95rem; }
+    .overall-table td:last-child, .overall-table th:last-child { text-align: right; font-size: 0.95rem; font-weight: 700; }
     .player-name { font-size: 0.82rem; }
     .golfer-pill { font-size: 0.55rem; padding: 2px 5px; }
 
@@ -2997,7 +2999,8 @@ function renderOverallStandings() {
     const mData = state.majors[m.id];
     const pot = calcPot(m.id);
     PLAYERS.forEach(p => {
-      const paid = 20 + (mData.potExtra[p] || 0) * 5;
+      const subFee = mData.subs?.[p]?.paid ? 10 : 0;
+      const paid = 20 + (mData.potExtra[p] || 0) * 5 + subFee;
       let won = 0;
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
@@ -3453,7 +3456,8 @@ function renderHistory() {
 
     // Build per-player net for this major
     const playerResults = PLAYERS.map(p => {
-      const paid = 20 + (mData.potExtra[p] || 0) * 5;
+      const subFee = mData.subs?.[p]?.paid ? 10 : 0;
+      const paid = 20 + (mData.potExtra[p] || 0) * 5 + subFee;
       let won = 0;
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
@@ -3884,7 +3888,8 @@ function renderStandings() {
         totals[p].majors[m.id] = null;
         return;
       }
-      const paid = 20 + (mData.potExtra[p] || 0) * 5;
+      const subFee = mData.subs?.[p]?.paid ? 10 : 0;
+      const paid = 20 + (mData.potExtra[p] || 0) * 5 + subFee;
       let won = 0;
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
@@ -3920,8 +3925,8 @@ function renderStandings() {
           <tr>
             <th style="text-align:left;padding-left:16px">Player</th>
             ${yearMajors.map(m => `<th class="major-col-header">${m.name.replace('The ','').replace(' Championship','')}<br><span style="opacity:0.5;font-size:0.5rem">${m.dates}</span></th>`).join('')}
-            <th>Paid In</th>
-            <th>Won</th>
+            <th class="paid-col">Paid In</th>
+            <th class="won-col">Won</th>
             <th style="color:var(--gold)">Net</th>
           </tr>
         </thead>
