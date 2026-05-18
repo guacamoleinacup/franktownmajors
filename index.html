@@ -2727,10 +2727,21 @@ function renderMain(preserveScroll = false) {
 
   // ── WINNER BANNERS ──
   if (mData.majorWinner) {
-    if (mData.majorWinner === '__undrafted__') {
-      html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${mData.actualChampion || 'Undrafted Champion'}</h3><p>Not drafted · Prize goes to ${majorWinnerOwner || '–'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
+    // Compute winner display vars locally for renderMain scope
+    const _isUndrafted = mData.majorWinner === '__undrafted__';
+    let _majorWinnerOwner = null;
+    let _majorWinnerDisplay = mData.majorWinner || '';
+    if (_isUndrafted) {
+      _majorWinnerOwner = mData.prizeRecipient || null;
+      _majorWinnerDisplay = (mData.actualChampion || 'Undrafted Champion') + ' (undrafted)';
     } else {
-      html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${majorWinnerDisplay}</h3><p>Drafted by ${majorWinnerOwner || 'unknown'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
+      _majorWinnerOwner = PLAYERS.find(p => mData.rosters[p]?.picks?.includes(mData.majorWinner)) || null;
+      _majorWinnerDisplay = mData.majorWinner || '';
+    }
+    if (_isUndrafted) {
+      html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${mData.actualChampion || 'Undrafted Champion'}</h3><p>Not drafted · Prize goes to ${_majorWinnerOwner || '–'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
+    } else {
+      html += `<div class="winner-banner"><div class="winner-trophy">🏆</div><div class="winner-text"><h3>Major Champion: ${_majorWinnerDisplay}</h3><p>Drafted by ${_majorWinnerOwner || 'unknown'} · $${pot.half.toFixed(2)} prize</p></div></div>`;
     }
   }
   if (mData.teamWinner) {
