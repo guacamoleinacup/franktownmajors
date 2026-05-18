@@ -2081,8 +2081,17 @@ async function init() {
   setSyncStatus('syncing');
   setESPNStatus('pending');
 
-  // Fetch live data in background — don't block UI
-  syncPull().catch(() => {});
+  // Check if we need to recover data first
+  syncPull().then(async () => {
+    const hasRosters = state && PLAYERS.some(p => 
+      Object.values(state.majors || {}).some(m => m.rosters?.[p]?.picks?.some(g => g))
+    );
+    console.log('[init] hasRosters after pull:', hasRosters);
+    if (!hasRosters) {
+      console.log('[init] No rosters found, triggering recovery...');
+      await recoverData();
+    }
+  }).catch(() => {});
   startPolling();
 }
 
@@ -2100,15 +2109,20 @@ let lastHash = '';
 
 async function syncPull() {
   try {
-    const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-      headers: { 'X-Master-Key': API_KEY }
+    const r = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest?t=${Date.now()}`, {
+      headers: { 'X-Master-Key': API_KEY, 'Cache-Control': 'no-cache' }
     });
     if (!r.ok) { setSyncStatus('error'); return; }
     const j = await r.json();
     const raw = j.record;
     // If JSONBin has empty/wiped state, restore from recovery data
     const hasData = PLAYERS.some(p => Object.values(raw.majors || {}).some(m => m.rosters?.[p]?.picks?.some(g => g)));
-    if (!hasData) { recoverData(); return; }
+    console.log('[syncPull] hasData:', hasData, 'majors:', JSON.stringify(Object.keys(raw.majors||{})));
+    if (!hasData) { 
+      console.log('[syncPull] Empty state detected, running recovery...');
+      recoverData().catch(e => console.warn('Recovery failed:', e));
+      return; 
+    }
     const h = JSON.stringify(raw);
     if (h !== lastHash) {
       lastHash = h;
@@ -2125,7 +2139,8 @@ async function syncPull() {
   } catch(e) {
     syncFailCount++;
     if (syncFailCount >= 2) setSyncStatus('error');
-    console.warn('syncPull failed:', e.message);
+    console.warn('syncPull failed:', e.message, e.name);
+    showToast('Sync error: ' + e.message.slice(0, 60));
     if (state) renderMain(true);
   }
 }
@@ -2162,7 +2177,7 @@ async function syncPush(retries = 2) {
       return syncPush(retries - 1);
     }
     setSyncStatus('error');
-    showToast('Save failed — tap Refresh then try again');
+    showToast('Save failed: ' + e.message.slice(0, 60));
   }
 }
 
