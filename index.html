@@ -2503,6 +2503,7 @@ function renderTabs() {
 
 let activeView = 'major'; // 'major' | 'standings' | 'history'
 let activeStandingsYear = 2026;
+let activeHistoryYear = 2026;
 
 function switchMajor(id) {
   activeMajorId = id;
@@ -3470,19 +3471,42 @@ function renderHistory() {
   if (!state) return;
   const el = document.getElementById('mainContent');
 
-  const completedMajors = MAJORS.filter(m => state.majors[m.id]?.complete || state.majors[m.id]?.majorWinner);
+  const allCompleted = MAJORS.filter(m => state.majors[m.id]?.complete || state.majors[m.id]?.majorWinner);
+
+  // Year selector tabs
+  const yearTabs = YEARS.map(y => `
+    <button class="year-tab${y === activeHistoryYear ? ' active' : ''}" onclick="activeHistoryYear=${y};renderHistory()">
+      ${y}
+    </button>
+  `).join('');
+
+  const yearHeader = `
+    <div class="standings-hero" style="margin-bottom:24px">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold)">Major History</div>
+        <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--gold-light);opacity:0.7;margin-top:4px;letter-spacing:0.08em">Franktown Golf Majors · Results Archive</div>
+      </div>
+      <div class="year-tabs">${yearTabs}</div>
+    </div>
+  `;
+
+  // Filter by selected year, most recent first
+  const completedMajors = allCompleted
+    .filter(m => m.year === activeHistoryYear)
+    .slice()
+    .reverse();
 
   if (completedMajors.length === 0) {
-    el.innerHTML = `
+    el.innerHTML = yearHeader + `
       <div class="history-empty">
         <div class="history-empty-icon">⛳</div>
-        <div class="history-empty-text">No completed majors yet — check back after The Masters</div>
+        <div class="history-empty-text">No completed majors yet for ${activeHistoryYear}</div>
       </div>
     `;
     return;
   }
 
-  let html = '';
+  let html = yearHeader;
 
   completedMajors.forEach(major => {
     const mData = state.majors[major.id];
