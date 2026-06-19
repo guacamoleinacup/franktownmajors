@@ -1867,7 +1867,7 @@
     </div>
     <div class="header-right">
       <div class="sync-status">
-        <div class="sync-dot" id="syncDot" title="JSONBin sync"></div>
+        <div class="sync-dot" id="syncDot" title="Supabase sync"></div>
         <span id="syncLabel" style="display:none"></span>
         <div class="sync-dot" id="espnDot" title="ESPN scores"></div>
         <span style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--gold-light);opacity:0.6" id="syncLabels">connecting…</span>
@@ -1916,7 +1916,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const SUPABASE_TABLE = 'franktownmajors';
 const SUPABASE_ROW = 'state';
 const ADMIN_PW = 'ftown123!';
-const POLL_INTERVAL = 8000;  // 8s JSONBin
+const POLL_INTERVAL = 8000;  // 8s Supabase poll
 const ESPN_POLL = 10000;  // 10s ESPN
 
 const PLAYERS = ['Christian','Nick','Phil','Shaun','Ben','John','Josh','Sam'];
@@ -1927,6 +1927,30 @@ const MAJORS = [
   { id: 'usopen2026',       name: 'U.S. Open',           year: 2026, dates: 'Jun 18–21', course: 'Shinnecock Hills',        espnId: '401811952' },
   { id: 'theopen2026',      name: 'The Open Championship', year: 2026, dates: 'Jul 16–19', course: 'Royal Portrush',        espnId: null },
 ];
+
+// Course par per major — used to normalize ESPN round values that arrive as
+// stroke totals (e.g. 67) instead of to-par (e.g. -5). Augusta is 72; the
+// others are NOT, so a hardcoded 72 silently mis-scored par-70 events.
+const PARS = { masters2026: 72, pga2026: 70, usopen2026: 70, theopen2026: 71 };
+function parFor(majorId) { return PARS[majorId] ?? 72; }
+
+// Convert a single ESPN round value to a to-par number, or null if unparseable.
+function roundToPar(rawVal, majorId) {
+  const d = String(rawVal ?? '').trim();
+  if (d === '' ) return null;
+  if (d === 'E') return 0;
+  const n = parseInt(d);
+  if (isNaN(n)) return null;
+  return Math.abs(n) > 20 ? n - parFor(majorId) : n;
+}
+
+// Sum the first up-to-4 rounds of a linescores array into a to-par total.
+function sumRounds(linescores, majorId) {
+  return (linescores || []).slice(0, 4).reduce((s, r) => {
+    const tp = roundToPar(r.displayValue, majorId);
+    return s + (tp === null ? 0 : tp);
+  }, 0);
+}
 
 // ══════════════════════════════════════════
 // STATE
@@ -1976,7 +2000,7 @@ function isTournamentWeek(majorId) {
 }
 
 // ══════════════════════════════════════════
-// CROSS-TAB SYNC — instant sync without JSONBin requests
+// CROSS-TAB SYNC — instant sync without Supabase requests
 // ══════════════════════════════════════════
 // When admin saves, we broadcast to all open tabs via localStorage event
 // This gives instant sync for anyone with the site open on the same device
@@ -2127,7 +2151,7 @@ async function syncPull() {
     const rows = await r.json();
     if (!rows || rows.length === 0) { recoverData(); return; }
     const raw = rows[0].data;
-    // If JSONBin has empty/wiped state, restore from recovery data
+    // If Supabase has empty/wiped state, restore from recovery data
     const hasData = PLAYERS.some(p => Object.values(raw.majors || {}).some(m => m.rosters?.[p]?.picks?.some(g => g)));
     console.log('[syncPull] hasData:', hasData, 'majors:', JSON.stringify(Object.keys(raw.majors||{})));
     if (!hasData) { 
@@ -2337,7 +2361,7 @@ async function fetchESPN(majorId) {
             linescores: v.raw?.linescores || [], flagUrl: v.flagUrl, country: v.country
           };
         });
-        // Only auto-save snapshot if rosters are populated — prevents wiping JSONBin on empty load
+        // Only auto-save snapshot if rosters are populated — prevents wiping Supabase on empty load
         if (PLAYERS.some(p => mData.rosters[p]?.picks?.some(g => g))) syncPush(2, true);
       }
     }
@@ -2446,11 +2470,7 @@ function calcTeamScore(majorId, playerName) {
       const getLS = e => e?.raw?.linescores || e?.linescores || [];
       const allLS = getLS(altEspn).slice(0, 4);
       if (allLS.length > 0) {
-        toPar = allLS.reduce((s, r) => {
-          const d = String(r.displayValue ?? '').trim();
-          const n = d === 'E' ? 0 : parseInt(d);
-          return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
-        }, 0);
+        toPar = sumRounds(allLS, majorId);
         hasAny = true;
       }
       scorers.push({ name: g, subIn: sub.subIn, isSubbed: true, status, score: toPar });
@@ -2460,11 +2480,7 @@ function calcTeamScore(majorId, playerName) {
       if (espn) {
         const ls = espn.raw?.linescores?.slice(0, 4) || espn.linescores?.slice(0, 4) || [];
         if (ls.length > 0) {
-          toPar = ls.reduce((s, r) => {
-            const d = String(r.displayValue ?? '').trim();
-            const n = d === 'E' ? 0 : parseInt(d);
-            return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
-          }, 0);
+          toPar = sumRounds(ls, majorId);
         } else {
           toPar = espn.toPar ?? 0;
         }
@@ -2594,7 +2610,7 @@ function renderPayoutSummary(majorId) {
         const espn = getGolferScore(activeMajorId, g);
         const ls = espn?.raw?.linescores?.slice(0,4) || espn?.linescores?.slice(0,4) || [];
         if (!ls.length) return;
-        const s = ls.reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+        const s = sumRounds(ls, majorId);
         if (bestS === null || s < bestS) { bestS = s; majorWinnerOwner = p; }
       });
     });
@@ -2660,9 +2676,7 @@ function renderAltCard(alt, isSubIn = false) {
   // Use identical logic to main golfer cards
   const altRounds = [];
   ls.slice(0,4).forEach(r => {
-    const disp = String(r.displayValue ?? '').trim();
-    const n = disp === 'E' ? 0 : parseInt(disp);
-    const tp = isNaN(n) ? null : (Math.abs(n) > 20 ? n - 72 : n);
+    const tp = roundToPar(r.displayValue, activeMajorId);
     if (tp !== null) altRounds.push(tp);
   });
 
@@ -2705,7 +2719,7 @@ function renderAltCard(alt, isSubIn = false) {
   // Leader badge check — same logic as main golfer cards
   const altLS = espn?.raw?.linescores?.slice(0,4) || espn?.linescores?.slice(0,4) || [];
   const altScore = live && altLS.length > 0
-    ? altLS.reduce((s, r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0)
+    ? sumRounds(altLS, activeMajorId)
     : null;
   const isAltLeader = live && minGolferScore !== null && altScore === minGolferScore;
   const leaderTag = isAltLeader ? ' 🏆' : '';
@@ -2825,7 +2839,7 @@ function renderMain(preserveScroll = false) {
         if (!espn) return null;
         const ls = espn.raw?.linescores?.slice(0,4) || espn.linescores?.slice(0,4) || [];
         if (!ls.length) return null;
-        return ls.reduce((s, r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+        return sumRounds(ls, activeMajorId);
       }).filter(s => s !== null);
       return scores.length ? Math.min(...scores) : 0;
     };
@@ -2843,11 +2857,7 @@ function renderMain(preserveScroll = false) {
     Object.values(allEspnData).forEach(espnG => {
       const ls = espnG?.raw?.linescores?.slice(0,4) || espnG?.linescores?.slice(0,4) || [];
       if (!ls.length) return;
-      const score = ls.reduce((s, r) => {
-        const d = String(r.displayValue ?? '').trim();
-        const n = d === 'E' ? 0 : parseInt(d);
-        return s + (isNaN(n) ? 0 : (Math.abs(n) > 20 ? n - 72 : n));
-      }, 0);
+      const score = sumRounds(ls, activeMajorId);
       if (minGolferScore === null || score < minGolferScore) minGolferScore = score;
     });
   }
@@ -2899,7 +2909,7 @@ function renderMain(preserveScroll = false) {
             const _leaderEspn = espnG;
             const _leaderLS = _leaderEspn?.raw?.linescores?.slice(0,4) || _leaderEspn?.linescores?.slice(0,4) || [];
             const golferScore = live && _leaderLS.length > 0
-              ? _leaderLS.reduce((s, r) => { const d = String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0)
+              ? sumRounds(_leaderLS, activeMajorId)
               : null;
             const isGolferLeader = live && minGolferScore !== null && golferScore === minGolferScore;
 
@@ -2909,27 +2919,9 @@ function renderMain(preserveScroll = false) {
             const rounds = [];
             linescores.forEach((ls, r) => {
               if (r >= 4) return;
-              // displayValue is the round score e.g. "-5", "+2", "E", "67", "72"
-              const disp = ls.displayValue || ls.value;
-              if (disp === undefined || disp === null || disp === '') return;
-              // ESPN sometimes gives stroke total (e.g. 67), sometimes gives to-par (e.g. -5)
-              // The value field is strokes, displayValue is to-par relative to round par
-              const dispStr = String(disp);
-              let toPar;
-              if (dispStr === 'E') toPar = 0;
-              else {
-                const n = parseInt(dispStr);
-                if (!isNaN(n)) {
-                  // If it looks like a full round score (65-80 range), convert to to-par
-                  if (Math.abs(n) > 20) {
-                    const roundPar = 72; // Augusta is par 72
-                    toPar = n - roundPar;
-                  } else {
-                    toPar = n;
-                  }
-                }
-              }
-              if (toPar !== undefined) rounds.push(toPar);
+              // displayValue ("-5"/"+2"/"E") preferred; falls back to stroke value.
+              const tp = roundToPar(ls.displayValue ?? ls.value, activeMajorId);
+              if (tp !== null) rounds.push(tp);
             });
 
             let overallScore = null;
@@ -3027,60 +3019,7 @@ function renderMain(preserveScroll = false) {
 }
 
 
-function renderOverallStandings() {
-  const totals = {};
-  PLAYERS.forEach(p => { totals[p] = { net: 0, majors: {} }; });
-
-  MAJORS.forEach(m => {
-    const mData = state.majors[m.id];
-    const pot = calcPot(m.id);
-    PLAYERS.forEach(p => {
-      const subFee = mData.subs?.[p]?.paid ? 10 : 0;
-      const paid = 20 + (mData.potExtra[p] || 0) * 5 + subFee;
-      let won = 0;
-      const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
-      if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
-      const roster = mData.rosters[p];
-      if (mData.majorWinner === '__undrafted__') {
-        if (mData.prizeRecipient && p === mData.prizeRecipient) won += pot.half;
-      } else if (mData.majorWinner && roster?.picks?.includes(mData.majorWinner)) {
-        won += pot.half;
-      }
-      totals[p].net += (won - paid);
-      totals[p].majors[m.id] = won - paid;
-    });
-  });
-
-  const sorted = PLAYERS.slice().sort((a,b) => totals[b].net - totals[a].net);
-
-  let html = `
-    <div class="standings-card">
-      <table class="overall-table">
-        <thead>
-          <tr>
-            <th>Player</th>
-            ${MAJORS.map(m => `<th class="major-col-header">${m.name.replace('The ','').replace(' Championship','')}</th>`).join('')}
-            <th>Net</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  sorted.forEach(p => {
-    html += `<tr>
-      <td>${p}</td>
-      ${MAJORS.map(m => {
-        const v = totals[p].majors[m.id];
-        const cls = v > 0 ? 'amount-positive' : v < 0 ? 'amount-negative' : '';
-        return `<td class="${cls}">${v > 0 ? '+' : ''}$${v}</td>`;
-      }).join('')}
-      <td class="${totals[p].net > 0 ? 'amount-positive' : totals[p].net < 0 ? 'amount-negative' : ''}" style="font-weight:700">${totals[p].net > 0 ? '+$' : totals[p].net < 0 ? '-$' : '$'}${Math.abs(totals[p].net).toFixed(2)}</td>
-    </tr>`;
-  });
-
-  html += `</tbody></table></div></div>`;
-  return html;
-}
+// (renderOverallStandings removed — was dead code, superseded by renderStandings)
 
 // ══════════════════════════════════════════
 // ADMIN
@@ -3592,7 +3531,7 @@ function renderHistory() {
                         if (!espn) return;
                         const ls = espn.linescores || espn.raw?.linescores || [];
                         if (!ls.length) return;
-                        const s = ls.slice(0,4).reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+                        const s = sumRounds(ls, major.id);
                         teamTotal = (teamTotal||0) + s;
                       });
                       if (teamTotal === null) return '';
@@ -3618,7 +3557,7 @@ function renderHistory() {
                       const e = getGolferScore(major.id, name);
                       const ls = e?.linescores || e?.raw?.linescores || [];
                       if (!ls.length) return { str: '–', cls: '' };
-                      const sum = ls.slice(0,4).reduce((s,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+                      const sum = sumRounds(ls, major.id);
                       const str = sum===0?'E':(sum>0?'+'+sum:''+sum);
                       const cls = str.startsWith('-')?'score-under':str.startsWith('+')?'score-over':str==='E'?'score-even':'';
                       return { str, cls };
@@ -3654,7 +3593,7 @@ function renderHistory() {
                     let altScore = '–';
                     if (altEspn) {
                       if (altLS.length > 0) {
-                        const sum = altLS.slice(0,4).reduce((s,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
+                        const sum = sumRounds(altLS, major.id);
                         altScore = sum===0?'E':(sum>0?'+'+sum:''+sum);
                       } else { altScore = altEspn.score || '–'; }
                     }
@@ -4101,7 +4040,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     // Restart polling in case browser throttled/killed timers while hidden
     startPolling();
-    // Force immediate fresh pull from JSONBin
+    // Force immediate fresh pull from Supabase
     syncPull().catch(() => {});
     // Reset ESPN debounce so scores refresh immediately
     lastESPNFetch = 0;
@@ -4117,7 +4056,6 @@ window.addEventListener('focus', () => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    closePlayerModal();
     if (adminUnlocked) closeAdmin();
   }
 });
