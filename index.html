@@ -2142,6 +2142,14 @@ async function syncPull() {
       saveCache(raw);
       setSyncStatus('live');
       syncFailCount = 0;
+      // Re-seed espnData from scoreSnapshot for completed majors (mirrors init())
+      Object.keys(state.majors || {}).forEach(mid => {
+        const snap = state.majors[mid]?.scoreSnapshot;
+        if (snap && Object.keys(snap).length > 0 && (!espnData[mid] || Object.keys(espnData[mid]).length === 0)) {
+          espnData[mid] = snap;
+        }
+      });
+      espnData['masters2026'] = MASTERS_2026_SCORES;
       fetchESPN(activeMajorId).catch(() => {});
       renderMain(true);
     } else {
@@ -2160,12 +2168,7 @@ async function syncPull() {
 async function syncPush(retries = 2, _silentPush = false) {
   setSyncStatus('syncing');
   try {
-    // Strip scoreSnapshot from push payload — hardcoded in JS, no need to store in JSONBin
-    const pushState = JSON.parse(JSON.stringify(state));
-    Object.keys(pushState.majors || {}).forEach(mid => {
-      delete pushState.majors[mid].scoreSnapshot;
-    });
-    const body = JSON.stringify({ id: SUPABASE_ROW, data: pushState });
+    const body = JSON.stringify({ id: SUPABASE_ROW, data: state });
     console.log('[syncPush] payload size:', body.length, 'bytes');
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
       method: 'POST',
@@ -2513,8 +2516,22 @@ function switchMajor(id) {
 function switchView(view) {
   activeView = view;
   renderTabs();
-  if (view === 'history') renderHistory();
-  else if (view === 'standings') renderStandings();
+  if (view === 'history') {
+    renderHistory();
+    // Fetch ESPN scores for any completed major that doesn't have data loaded yet
+    if (state) {
+      const completedMajors = MAJORS.filter(m =>
+        (state.majors[m.id]?.complete || state.majors[m.id]?.majorWinner) && m.espnId
+      );
+      const missing = completedMajors.filter(m =>
+        !espnData[m.id] || Object.keys(espnData[m.id]).length === 0
+      );
+      if (missing.length > 0) {
+        Promise.all(missing.map(m => fetchESPN(m.id).catch(() => {})))
+          .then(() => { if (activeView === 'history') renderHistory(); });
+      }
+    }
+  } else if (view === 'standings') renderStandings();
   else renderMain();
 }
 
@@ -4037,12 +4054,20 @@ function clearESPNCache() {
 // ══════════════════════════════════════════
 let lastESPNFetch = 0;
 const ESPN_DEBOUNCE = 8000;
+const _espnFetchTimes = {}; // per-majorId debounce for history fetches
 
 const _origFetchESPN = fetchESPN;
 fetchESPN = async function(majorId) {
   const now = Date.now();
-  if (now - lastESPNFetch < ESPN_DEBOUNCE) return;
-  lastESPNFetch = now;
+  // Use per-major debounce when fetching for history; global debounce for active-tab polling
+  const lastFetch = _espnFetchTimes[majorId] || 0;
+  if (majorId === activeMajorId) {
+    if (now - lastESPNFetch < ESPN_DEBOUNCE) return;
+    lastESPNFetch = now;
+  } else {
+    if (now - lastFetch < ESPN_DEBOUNCE) return;
+  }
+  _espnFetchTimes[majorId] = now;
   return _origFetchESPN(majorId);
 };
 
