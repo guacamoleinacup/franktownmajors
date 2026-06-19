@@ -2590,7 +2590,7 @@ function renderPayoutSummary(majorId) {
       const sub = mData.subs?.[p];
       const effective = picks.map((g, i) => (sub?.paid && sub.slot === i) ? sub.subIn : g);
       [...effective, mData.rosters[p]?.alternate].filter(Boolean).forEach(g => {
-        const espn = espnData[activeMajorId]?.[g.toLowerCase()];
+        const espn = getGolferScore(activeMajorId, g);
         const ls = espn?.raw?.linescores?.slice(0,4) || espn?.linescores?.slice(0,4) || [];
         if (!ls.length) return;
         const s = ls.reduce((sum,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return sum+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
@@ -2649,7 +2649,8 @@ function renderPayoutSummary(majorId) {
 // ══════════════════════════════════════════
 function renderAltCard(alt, isSubIn = false) {
   const espn = getGolferScore(activeMajorId, alt);
-  const live = isTournamentLive(activeMajorId) || Object.keys(espnData[activeMajorId] || {}).length > 0;
+  const live = isTournamentLive(activeMajorId) || Object.keys(espnData[activeMajorId] || {}).length > 0
+    || Object.keys(state?.majors[activeMajorId]?.scoreSnapshot || {}).length > 0;
   const week = isTournamentWeek(activeMajorId);
   const ls = espn?.raw?.linescores?.slice(0,4) || [];
   const thru = espn?.thru || '';
@@ -2732,7 +2733,8 @@ function renderMain(preserveScroll = false) {
   const mData = state.majors[activeMajorId];
   const pot = calcPot(activeMajorId);
   const hasRosters = PLAYERS.some(p => mData.rosters[p]?.picks?.some(g => g));
-  const hasSnapshot = Object.keys(espnData[activeMajorId] || {}).length > 0;
+  const hasSnapshot = Object.keys(espnData[activeMajorId] || {}).length > 0
+    || Object.keys(state.majors[activeMajorId]?.scoreSnapshot || {}).length > 0;
   const live = isTournamentLive(activeMajorId) || hasSnapshot;
 
   // Status badge
@@ -2836,7 +2838,7 @@ function renderMain(preserveScroll = false) {
   minGolferScore = null;
   if (live) {
     // Find the actual tournament leader score from ALL ESPN data (not just drafted)
-    const allEspnData = espnData[activeMajorId] || {};
+    const allEspnData = espnData[activeMajorId] || state.majors[activeMajorId]?.scoreSnapshot || {};
     Object.values(allEspnData).forEach(espnG => {
       const ls = espnG?.raw?.linescores?.slice(0,4) || espnG?.linescores?.slice(0,4) || [];
       if (!ls.length) return;
@@ -3562,7 +3564,7 @@ function renderHistory() {
                         if (!g) return;
                         // Use sub-in golfer's score if this slot was subbed
                         const effectiveG = (_histSub?.paid && _histSub.slot === si && _histSub.subIn) ? _histSub.subIn : g;
-                        const espn = espnData[major.id]?.[effectiveG.toLowerCase()];
+                        const espn = getGolferScore(major.id, effectiveG);
                         if (!espn) return;
                         const ls = espn.linescores || espn.raw?.linescores || [];
                         if (!ls.length) return;
@@ -3589,7 +3591,7 @@ function renderHistory() {
                     const subIn = isSubbedOut ? playerSub.subIn : null;
 
                     const getScore = (name) => {
-                      const e = espnData[major.id]?.[name.toLowerCase()];
+                      const e = getGolferScore(major.id, name);
                       const ls = e?.linescores || e?.raw?.linescores || [];
                       if (!ls.length) return { str: '–', cls: '' };
                       const sum = ls.slice(0,4).reduce((s,r) => { const d=String(r.displayValue??'').trim(); const n=d==='E'?0:parseInt(d); return s+(isNaN(n)?0:(Math.abs(n)>20?n-72:n)); }, 0);
@@ -3623,7 +3625,7 @@ function renderHistory() {
                     // Only show alt if it wasn't used as sub
                     const playerSub = mData.subs?.[pr.player];
                     if (playerSub?.paid && playerSub.subIn === alt) return '';
-                    const altEspn = espnData[major.id]?.[alt.toLowerCase()];
+                    const altEspn = getGolferScore(major.id, alt);
                     const altLS = altEspn?.linescores || altEspn?.raw?.linescores || [];
                     let altScore = '–';
                     if (altEspn) {
