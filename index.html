@@ -3171,9 +3171,12 @@ function renderAdmin() {
       `}
     </div>
 
-    <!-- Pot Extras -->
+    <!-- Pot Extras (read-only — auto-calculated from golfer statuses above) -->
     <div class="admin-section">
       <h3>Missed Cut Penalties (×$5)</h3>
+      <div style="font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold-light);opacity:0.6;margin-bottom:10px">
+        Auto-calculated from golfer statuses above · Saves automatically
+      </div>
       <table class="status-table">
         <thead><tr><th>Player</th><th>Cut Golfers</th><th># Penalties</th></tr></thead>
         <tbody>
@@ -3186,19 +3189,14 @@ function renderAdmin() {
                   ${(mData.rosters[p]?.picks||[]).filter(g=>g&&(mData.statuses[g]==='missed_cut'||mData.statuses[g]==='withdrawn')).join(', ') || '–'}
                 </td>
                 <td>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <button class="btn btn-outline btn-sm" onclick="adjPot('${p}',-1)">−</button>
-                    <span style="font-family:'DM Mono',monospace;font-size:0.85rem;width:20px;text-align:center">${count}</span>
-                    <button class="btn btn-outline btn-sm" onclick="adjPot('${p}',1)">+</button>
-                    <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--red-light)">=$${count*5}</span>
-                  </div>
+                  <span style="font-family:'DM Mono',monospace;font-size:0.85rem">${count}</span>
+                  <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--red-light);margin-left:8px">=$${count*5}</span>
                 </td>
               </tr>
             `;
           }).join('')}
         </tbody>
       </table>
-      <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="saveRosters()">Save Penalties</button>
     </div>
 
     <div class="admin-section">
@@ -3343,12 +3341,6 @@ function updateStatus(golfer, owner, status) {
     const cutCount = picks.filter(g => g && (state.majors[activeMajorId].statuses[g]==='missed_cut'||state.majors[activeMajorId].statuses[g]==='withdrawn')).length;
     state.majors[activeMajorId].potExtra[owner] = cutCount;
   }
-  syncPush();
-}
-
-function adjPot(player, delta) {
-  const cur = state.majors[activeMajorId].potExtra[player] || 0;
-  state.majors[activeMajorId].potExtra[player] = Math.max(0, cur + delta);
   syncPush();
 }
 
