@@ -2562,28 +2562,26 @@ function renderPayoutSummary(majorId) {
   const pot = calcPot(majorId);
   const major = MAJORS.find(m => m.id === majorId);
 
-  // Penalties
-  const penaltyRows = [
-    // MC penalty rows
-    ...PLAYERS.filter(p => (mData.potExtra[p] || 0) > 0).map(p => {
-      const count = mData.potExtra[p];
-      const cutGolfers = (mData.rosters[p]?.picks || []).filter(g => g && mData.statuses[g] === 'missed_cut');
-      return `<div class="payout-row">
-        <span class="payout-label">${p}</span>
-        <span class="payout-detail">${cutGolfers.join(', ')} missed cut</span>
-        <span class="payout-amount payout-neg">+$${(count * 5).toFixed(2)}</span>
-      </div>`;
-    }),
-    // Sub fee rows
-    ...PLAYERS.filter(p => mData.subs?.[p]?.paid).map(p => {
-      const sub = mData.subs[p];
-      return `<div class="payout-row">
-        <span class="payout-label">${p}</span>
-        <span class="payout-detail">${sub.subOut} → ${sub.subIn} (sub)</span>
-        <span class="payout-amount payout-neg">+$10.00</span>
-      </div>`;
-    }),
-  ].join('');
+  // Penalties — combined into one row per player (MC penalties + sub fee)
+  const penaltyRows = PLAYERS.filter(p =>
+    (mData.potExtra[p] || 0) > 0 || mData.subs?.[p]?.paid
+  ).map(p => {
+    const count = mData.potExtra[p] || 0;
+    const cutGolfers = (mData.rosters[p]?.picks || []).filter(g => g && mData.statuses[g] === 'missed_cut');
+    const sub = mData.subs?.[p]?.paid ? mData.subs[p] : null;
+
+    const details = [];
+    if (cutGolfers.length > 0) details.push(`${cutGolfers.join(', ')} missed cut`);
+    if (sub) details.push(`${sub.subOut} → ${sub.subIn} (sub)`);
+
+    const total = (count * 5) + (sub ? 10 : 0);
+
+    return `<div class="payout-row">
+      <span class="payout-label">${p}</span>
+      <span class="payout-detail">${details.join(' · ')}</span>
+      <span class="payout-amount payout-neg">+$${total.toFixed(2)}</span>
+    </div>`;
+  }).join('');
 
   // Winners
   const twNames = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()).filter(Boolean) : [];
