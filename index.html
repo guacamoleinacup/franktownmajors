@@ -1925,13 +1925,13 @@ const MAJORS = [
   { id: 'masters2026',      name: 'The Masters',         year: 2026, dates: 'Apr 9–12',  course: 'Augusta National',       espnId: '401811941' },
   { id: 'pga2026',          name: 'PGA Championship',    year: 2026, dates: 'May 14–17', course: 'Aronimink Golf Club',     espnId: '401811947' },
   { id: 'usopen2026',       name: 'U.S. Open',           year: 2026, dates: 'Jun 18–21', course: 'Shinnecock Hills',        espnId: '401811952' },
-  { id: 'theopen2026',      name: 'The Open Championship', year: 2026, dates: 'Jul 16–19', course: 'Royal Portrush',        espnId: null },
+  { id: 'theopen2026',      name: 'The Open Championship', year: 2026, dates: 'Jul 16–19', course: 'Royal Birkdale',        espnId: '401811957' },
 ];
 
 // Course par per major — used to normalize ESPN round values that arrive as
 // stroke totals (e.g. 67) instead of to-par (e.g. -5). Augusta is 72; the
 // others are NOT, so a hardcoded 72 silently mis-scored par-70 events.
-const PARS = { masters2026: 72, pga2026: 70, usopen2026: 70, theopen2026: 71 };
+const PARS = { masters2026: 72, pga2026: 70, usopen2026: 70, theopen2026: 70 };
 function parFor(majorId) { return PARS[majorId] ?? 72; }
 
 // Convert a single ESPN round value to a to-par number, or null if unparseable.
@@ -3616,7 +3616,7 @@ const HOLE_PARS = {
   masters2026:  [4,5,4,3,4,3,4,5,4, 4,4,3,5,4,5,3,4,4], // confirmed Augusta National pars
   pga2026:      [4,4,3,4,4,3,5,4,4, 4,4,4,3,5,3,4,5,4], // Quail Hollow approx
   usopen2026:   [4,4,3,5,4,3,4,4,5, 4,4,3,4,4,5,3,4,4], // Shinnecock approx
-  theopen2026:  [4,4,4,3,4,5,3,4,4, 4,3,4,4,3,5,4,4,5], // Royal Portrush approx
+  theopen2026:  [4,4,4,3,4,4,3,4,4, 4,4,3,4,5,3,4,5,4], // Royal Birkdale, official AP scorecard
 };
 
 
