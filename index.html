@@ -2421,12 +2421,27 @@ function getGolferScore(majorId, golferName) {
 // ══════════════════════════════════════════
 // POT CALC
 // ══════════════════════════════════════════
+// Live-derives how many of a player's golfers (5 picks + sub-in, if a paid
+// sub is active) are currently missed_cut/withdrawn. Always computed fresh
+// from statuses/subs rather than trusted from the persisted potExtra value,
+// so a stale/older-written potExtra count can never drift from what the
+// statuses actually say (e.g. after a formula fix, or a status edited
+// out of order).
+function mcCount(majorId, player) {
+  const mData = state.majors[majorId];
+  if (!mData) return 0;
+  const picks = mData.rosters[player]?.picks || [];
+  const sub = mData.subs?.[player];
+  const chargeable = sub?.paid && sub.subIn ? [...picks, sub.subIn] : picks;
+  return chargeable.filter(g => g && (mData.statuses[g] === 'missed_cut' || mData.statuses[g] === 'withdrawn')).length;
+}
+
 function calcPot(majorId) {
   if (!state) return { base: 0, extra: 0, total: 0, half: 0 };
   const mData = state.majors[majorId];
   const base = PLAYERS.length * 20;
   let extra = 0;
-  PLAYERS.forEach(p => { extra += (mData.potExtra[p] || 0) * 5; });
+  PLAYERS.forEach(p => { extra += mcCount(majorId, p) * 5; });
   // Add $10 per confirmed sub
   const subCount = Object.values(mData.subs || {}).filter(s => s?.paid).length;
   extra += subCount * 10;
@@ -2564,9 +2579,9 @@ function renderPayoutSummary(majorId) {
 
   // Penalties — combined into one row per player (MC penalties + sub fee)
   const penaltyRows = PLAYERS.filter(p =>
-    (mData.potExtra[p] || 0) > 0 || mData.subs?.[p]?.paid
+    mcCount(majorId, p) > 0 || mData.subs?.[p]?.paid
   ).map(p => {
-    const count = mData.potExtra[p] || 0;
+    const count = mcCount(majorId, p);
     const sub = mData.subs?.[p]?.paid ? mData.subs[p] : null;
     const chargeablePool = sub?.subIn ? [...(mData.rosters[p]?.picks || []), sub.subIn] : (mData.rosters[p]?.picks || []);
     const cutGolfers = chargeablePool.filter(g => g && (mData.statuses[g] === 'missed_cut' || mData.statuses[g] === 'withdrawn'));
@@ -2874,7 +2889,7 @@ function renderMain(preserveScroll = false) {
     const picks = roster?.picks || [];
     const alt = roster?.alternate || '';
     const isLeader = rank === 0 && ts.score !== null;
-    const potAdd = ((mData.potExtra[ts.player] || 0) * 5)
+    const potAdd = (mcCount(activeMajorId, ts.player) * 5)
       + (mData.subs?.[ts.player]?.paid ? 10 : 0);
 
     const scoreDisp = live && ts.score !== null
@@ -3188,12 +3203,14 @@ function renderAdmin() {
         <thead><tr><th>Player</th><th>Cut Golfers</th><th># Penalties</th></tr></thead>
         <tbody>
           ${PLAYERS.map(p => {
-            const count = mData.potExtra[p] || 0;
+            const count = mcCount(activeMajorId, p);
+            const sub = mData.subs?.[p];
+            const cutPool = sub?.paid && sub.subIn ? [...(mData.rosters[p]?.picks||[]), sub.subIn] : (mData.rosters[p]?.picks||[]);
             return `
               <tr>
                 <td>${p}</td>
                 <td style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--gold-light);opacity:0.6">
-                  ${(mData.rosters[p]?.picks||[]).filter(g=>g&&(mData.statuses[g]==='missed_cut'||mData.statuses[g]==='withdrawn')).join(', ') || '–'}
+                  ${cutPool.filter(g=>g&&(mData.statuses[g]==='missed_cut'||mData.statuses[g]==='withdrawn')).join(', ') || '–'}
                 </td>
                 <td>
                   <span style="font-family:'DM Mono',monospace;font-size:0.85rem">${count}</span>
@@ -3455,7 +3472,7 @@ function renderHistory() {
     // Build per-player net for this major
     const playerResults = PLAYERS.map(p => {
       const subFee = mData.subs?.[p]?.paid ? 10 : 0;
-      const paid = 20 + (mData.potExtra[p] || 0) * 5 + subFee;
+      const paid = 20 + mcCount(major.id, p) * 5 + subFee;
       let won = 0;
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
@@ -3887,7 +3904,7 @@ function renderStandings() {
         return;
       }
       const subFee = mData.subs?.[p]?.paid ? 10 : 0;
-      const paid = 20 + (mData.potExtra[p] || 0) * 5 + subFee;
+      const paid = 20 + mcCount(m.id, p) * 5 + subFee;
       let won = 0;
       const twSplit = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()) : [];
       if (twSplit.includes(p)) won += Math.round(pot.half / twSplit.length * 100) / 100;
