@@ -2567,8 +2567,9 @@ function renderPayoutSummary(majorId) {
     (mData.potExtra[p] || 0) > 0 || mData.subs?.[p]?.paid
   ).map(p => {
     const count = mData.potExtra[p] || 0;
-    const cutGolfers = (mData.rosters[p]?.picks || []).filter(g => g && mData.statuses[g] === 'missed_cut');
     const sub = mData.subs?.[p]?.paid ? mData.subs[p] : null;
+    const chargeablePool = sub?.subIn ? [...(mData.rosters[p]?.picks || []), sub.subIn] : (mData.rosters[p]?.picks || []);
+    const cutGolfers = chargeablePool.filter(g => g && (mData.statuses[g] === 'missed_cut' || mData.statuses[g] === 'withdrawn'));
 
     const details = [];
     if (cutGolfers.length > 0) details.push(`${cutGolfers.join(', ')} missed cut`);
@@ -2666,6 +2667,9 @@ function renderAltCard(alt, isSubIn = false) {
   const espn = getGolferScore(activeMajorId, alt);
   const live = isTournamentLive(activeMajorId) || Object.keys(espnData[activeMajorId] || {}).length > 0
     || Object.keys(state?.majors[activeMajorId]?.scoreSnapshot || {}).length > 0;
+  const altStatus = state?.majors[activeMajorId]?.statuses?.[alt] || 'active';
+  const altIsCut = altStatus === 'missed_cut';
+  const altIsWD = altStatus === 'withdrawn';
   const week = isTournamentWeek(activeMajorId);
   const ls = espn?.raw?.linescores?.slice(0,4) || espn?.linescores?.slice(0,4) || [];
   const thru = espn?.thru || '';
@@ -2723,12 +2727,17 @@ function renderAltCard(alt, isSubIn = false) {
   const leaderTag = isAltLeader ? ' 🏆' : '';
 
 
-  return '<div class="' + (isSubIn ? 'golfer-card' : 'golfer-card gc-alt') + '">'
+  const altStatusTag = altIsCut ? '<span class="gc-tag gc-tag-cut" style="margin-left:2px">MC</span>'
+    : altIsWD ? '<span class="gc-tag gc-tag-wd" style="margin-left:2px">WD</span>' : '';
+  const altCardCls = (isSubIn ? 'golfer-card' : 'golfer-card gc-alt') + (altIsCut ? ' gc-cut' : altIsWD ? ' gc-wd' : '');
+
+  return '<div class="' + altCardCls + '">'
     + '<div class="gc-name-row"><div style="min-width:0;overflow:hidden">'
     + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;min-width:0">'
     + flag
     + '<span class="gc-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis' + (isAltLeader ? ';color:var(--gold);font-weight:700' : '') + '">' + alt + leaderTag + '</span>'
     + (isSubIn ? '<span class="gc-tag" style="background:rgba(201,168,76,0.2);color:var(--gold);border-color:var(--gold)">SUB</span>' : '<span class="gc-tag gc-tag-alt">ALT</span>')
+    + altStatusTag
     + '</div>' + teeTime + '</div></div>'
     + '<div class="gc-scores">' + roundCells
     + '<span class="gc-total ' + totCls + '" style="opacity:0.7">' + (totStr || '–') + '</span>'
@@ -3329,15 +3338,16 @@ function saveRosters() { syncPush(); }
 function updateStatus(golfer, owner, status) {
   state.majors[activeMajorId].statuses[golfer] = status;
   // Auto-sync pot penalties
-  if (owner && (status === 'missed_cut' || status === 'withdrawn')) {
-    // Count how many of this player's picks are cut/withdrawn
-    const picks = state.majors[activeMajorId].rosters[owner]?.picks || [];
-    const cutCount = picks.filter(g => g && (state.majors[activeMajorId].statuses[g]==='missed_cut'||state.majors[activeMajorId].statuses[g]==='withdrawn')).length;
-    state.majors[activeMajorId].potExtra[owner] = cutCount;
-  } else if (owner && status === 'active') {
-    const picks = state.majors[activeMajorId].rosters[owner]?.picks || [];
-    const cutCount = picks.filter(g => g && (state.majors[activeMajorId].statuses[g]==='missed_cut'||state.majors[activeMajorId].statuses[g]==='withdrawn')).length;
-    state.majors[activeMajorId].potExtra[owner] = cutCount;
+  if (owner) {
+    const mData = state.majors[activeMajorId];
+    // Count how many of this player's golfers are cut/withdrawn — includes the
+    // original 5 picks PLUS the sub-in golfer if a paid sub is active, since
+    // both subbed-out and subbed-in golfers still owe the $5 MC penalty.
+    const picks = mData.rosters[owner]?.picks || [];
+    const sub = mData.subs?.[owner];
+    const chargeable = sub?.paid && sub.subIn ? [...picks, sub.subIn] : picks;
+    const cutCount = chargeable.filter(g => g && (mData.statuses[g]==='missed_cut'||mData.statuses[g]==='withdrawn')).length;
+    mData.potExtra[owner] = cutCount;
   }
   syncPush();
 }
