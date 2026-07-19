@@ -3233,22 +3233,22 @@ function renderAdmin() {
       <h3>Declare Winners</h3>
       <div class="form-group" style="margin-bottom:14px">
         <label>Major Champion</label>
-        <select onchange="state.majors[activeMajorId].majorWinner=this.value">
+        <select onchange="setMajorWinner(this.value)">
           <option value="">– Not set –</option>
           <option value="__undrafted__" ${mData.majorWinner==='__undrafted__'?'selected':''}>── Champion not drafted ──</option>
           ${PLAYERS.flatMap(p => (mData.rosters[p]?.picks||[]).filter(Boolean).map(g => ({g, p}))).map(({g, p}) =>
             `<option value="${g}" ${mData.majorWinner===g?'selected':''}>${g} (${p})</option>`
           ).join('')}
         </select>
-        <div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold-light);opacity:0.6;margin-top:4px">If champion wasn't drafted, prize goes to owner of the best drafted golfer</div>
+        <div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--gold-light);opacity:0.6;margin-top:4px">If champion wasn't drafted, prize defaults to the low team winner below (editable if needed)</div>
         <div style="margin-top:8px">
           <label style="font-size:0.7rem;opacity:0.7">Actual Champion Name (for records)</label>
           <input type="text" value="${mData.actualChampion||''}" oninput="state.majors[activeMajorId].actualChampion=this.value" placeholder="e.g. Aaron Rai" style="margin-top:4px">
         </div>
-        ${mData.majorWinner === '__undrafted__' ? '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Prize Goes To (player)</label><select onchange="state.majors[activeMajorId].prizeRecipient=this.value" style="margin-top:4px"><option value="">– Select player –</option>'
+        ${mData.majorWinner === '__undrafted__' ? '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Prize Goes To (player) — defaults to low team winner</label><select onchange="state.majors[activeMajorId].prizeRecipient=this.value" style="margin-top:4px"><option value="">– Select player –</option>'
           + PLAYERS.map(p => '<option value="' + p + '" ' + (mData.prizeRecipient===p?'selected':'') + '>' + p + '</option>').join('')
           + '</select></div>'
-          + '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Best Drafted Golfer(s) (why they win)</label><input type="text" value="' + (mData.bestGolfer||'') + '" oninput="state.majors[activeMajorId].bestGolfer=this.value" placeholder="e.g. Jon Rahm, Alex Smalley" style="margin-top:4px"></div>'
+          + '<div style="margin-top:8px"><label style="font-size:0.7rem;opacity:0.7">Note (optional — e.g. closest drafted golfer)</label><input type="text" value="' + (mData.bestGolfer||'') + '" oninput="state.majors[activeMajorId].bestGolfer=this.value" placeholder="e.g. Jon Rahm, Alex Smalley" style="margin-top:4px"></div>'
           : ''}
       </div>
       <div class="form-group" style="margin-bottom:14px">
@@ -3342,12 +3342,29 @@ function removeSub(player) {
   renderAdmin();
 }
 
+function setMajorWinner(value) {
+  const mData = state.majors[activeMajorId];
+  mData.majorWinner = value;
+  // Default the undrafted-champion prize to the low team winner — only if a
+  // recipient hasn't already been chosen, so a manual pick is never clobbered.
+  if (value === '__undrafted__' && !mData.prizeRecipient && mData.teamWinner) {
+    const winners = mData.teamWinner.split(',').map(s => s.trim()).filter(Boolean);
+    if (winners.length) mData.prizeRecipient = winners[0];
+  }
+  renderAdmin();
+}
+
 function toggleTeamWinner(player, checked) {
   const mData = state.majors[activeMajorId];
   const winners = mData.teamWinner ? mData.teamWinner.split(',').map(s=>s.trim()).filter(Boolean) : [];
   if (checked && !winners.includes(player)) winners.push(player);
   if (!checked) winners.splice(winners.indexOf(player), 1);
   mData.teamWinner = winners.join(',');
+  // Same default, for the case where team winner is set after (or changed
+  // while) the champion is already marked undrafted.
+  if (mData.majorWinner === '__undrafted__' && !mData.prizeRecipient && winners.length) {
+    mData.prizeRecipient = winners[0];
+  }
 }
 
 function saveRosters() { syncPush(); }
